@@ -6,7 +6,11 @@ PROJECT_DIR="$ROOT_DIR/Overlay/StudifyOverlay"
 OUTPUT_DIR="$ROOT_DIR/Outputs/StudifyOverlay"
 LIVE_DIR="$OUTPUT_DIR/LiveContainer/StudifyOverlay"
 OUTPUT_ZIP="$OUTPUT_DIR/StudifyOverlay-LiveContainer.zip"
-BASE_IPA="${1:-Outputs/IPAS/EeveeSpotify-6.6.2-9.1.28-patched.ipa}"
+DEFAULT_BASE_IPA="/Users/williamxu/Downloads/EeveeSpotify-6.6.2-9.1.28.ipa"
+if [ ! -f "$DEFAULT_BASE_IPA" ]; then
+  DEFAULT_BASE_IPA="Outputs/IPAS/EeveeSpotify-6.6.2-9.1.28-patched.ipa"
+fi
+BASE_IPA="${1:-${BASE_IPA:-$DEFAULT_BASE_IPA}}"
 TMP_DIR="/private/tmp/studify-overlay-frameworks"
 
 export THEOS="${THEOS:-/Users/williamxu/theos}"

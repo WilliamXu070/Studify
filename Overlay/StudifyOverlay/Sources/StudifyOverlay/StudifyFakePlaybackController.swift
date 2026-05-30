@@ -271,23 +271,39 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
 
     @objc private func handleWindowTap(_ recognizer: UITapGestureRecognizer) {
         guard recognizer.state == .ended, let window = recognizer.view as? UIWindow else { return }
-        guard cachedOfflineModeActive else { return }
+        guard cachedOfflineModeActive || studifyOverlayProbeModeEnabled else { return }
         let point = recognizer.location(in: window)
         guard let hitView = window.hitTest(point, with: nil) else { return }
 
         guard let row = trackRow(startingAt: hitView) else {
             if studifyOverlayProbeModeEnabled {
-                logGenericTapProbe(hitView: hitView, window: window, point: point, reason: "no-row-candidate")
+                logGenericTapProbe(
+                    hitView: hitView,
+                    window: window,
+                    point: point,
+                    reason: cachedOfflineModeActive ? "no-row-candidate" : "online-no-row-candidate"
+                )
             }
             return
         }
 
         if studifyOverlayProbeModeEnabled {
-            StudifyProbeStreamClient.shared.start(reason: "row tap")
+            StudifyProbeStreamClient.shared.start(reason: cachedOfflineModeActive ? "row tap" : "online row tap")
             if let track = track(from: row) {
-                logPressPathProbe(hitView: hitView, row: row, track: track, reason: "window tap ended")
+                logPressPathProbe(
+                    hitView: hitView,
+                    row: row,
+                    track: track,
+                    reason: cachedOfflineModeActive ? "window tap ended" : "online window tap ended"
+                )
             } else {
-                logRowTapWithoutTrackProbe(hitView: hitView, row: row, window: window, point: point, reason: "row-without-track")
+                logRowTapWithoutTrackProbe(
+                    hitView: hitView,
+                    row: row,
+                    window: window,
+                    point: point,
+                    reason: cachedOfflineModeActive ? "row-without-track" : "online-row-without-track"
+                )
             }
             return
         }

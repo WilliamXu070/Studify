@@ -10,6 +10,11 @@ private let studifyProbeModeConfigPaths = [
     "studify-probe-mode.txt"
 ]
 
+private let studifyProbeUploadConfigPaths = [
+    "StudifyLibrary/probe-upload.txt",
+    "studify-probe-upload.txt"
+]
+
 func studifyOverlayResolvedServerURLString() -> String {
     if let override = studifyOverlayServerURLOverride() {
         return override
@@ -39,6 +44,27 @@ func studifyOverlayProbeModeIsEnabled() -> Bool {
     ].contains(normalized)
 }
 
+func studifyOverlayProbeUploadIsEnabled() -> Bool {
+    if UserDefaults.standard.bool(forKey: "StudifyOverlayProbeUpload") {
+        return true
+    }
+
+    guard let rawValue = studifyOverlayProbeUploadOverride() else {
+        return false
+    }
+
+    let normalized = rawValue.lowercased()
+    return [
+        "1",
+        "true",
+        "yes",
+        "on",
+        "enabled",
+        "upload",
+        "server"
+    ].contains(normalized)
+}
+
 private func studifyOverlayServerURLOverride() -> String? {
     let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
 
@@ -51,6 +77,26 @@ private func studifyOverlayServerURLOverride() -> String? {
         let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") else {
             studifyOverlayLog("Ignoring invalid Studify server URL override at \(relativePath): \(trimmed)")
+            continue
+        }
+
+        return trimmed
+    }
+
+    return nil
+}
+
+private func studifyOverlayProbeUploadOverride() -> String? {
+    let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+
+    for relativePath in studifyProbeUploadConfigPaths {
+        let url = documentsURL.appendingPathComponent(relativePath, isDirectory: false)
+        guard let rawValue = try? String(contentsOf: url, encoding: .utf8) else {
+            continue
+        }
+
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
             continue
         }
 

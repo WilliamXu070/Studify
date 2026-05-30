@@ -2,7 +2,9 @@ import Foundation
 import Orion
 import UIKit
 
-let studifyOnlinePlaybackProbeEnabled = false
+var studifyOnlinePlaybackProbeEnabled: Bool {
+    studifyOverlayProbeModeEnabled
+}
 
 private struct StudifyOnlineProbeTrack: Equatable {
     let title: String

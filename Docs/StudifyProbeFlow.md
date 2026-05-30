@@ -6,7 +6,8 @@ fake playability, and does not start Studify local playback from row taps.
 
 ## Enable Probe Mode
 
-On the device/LiveContainer app documents folder, create:
+`Tools/StudifyLiveContainer/restart-test.sh` now enables probe mode by copying
+this file into the LiveContainer virtual Spotify container:
 
 ```text
 Documents/StudifyLibrary/probe-mode.txt
@@ -18,30 +19,24 @@ with:
 on
 ```
 
-If needed, also point the overlay at the Mac signal server:
+Probe mode writes phone-local logs only. It does not need the Mac signal server
+or `server-url.txt`. The restart script also writes:
 
 ```text
-Documents/StudifyLibrary/server-url.txt
+Documents/StudifyLibrary/probe-upload.txt
 ```
 
-example:
+with:
 
 ```text
-http://192.168.1.25:8787
+off
 ```
 
-Then restart the app so the overlay reloads.
-
-## Run Server
-
-On the Mac:
+To skip this automatic probe-mode copy for a non-probe run:
 
 ```sh
-node Tools/StudifySignalServer/server.js
+PROBE_MODE=0 Tools/StudifyLiveContainer/restart-test.sh
 ```
-
-Open the printed dashboard URL. Probe events appear in the `Probe Stream`
-section.
 
 ## Test Scenarios
 
@@ -50,6 +45,14 @@ Deploy/restart with a clean probe log:
 ```sh
 Tools/StudifyLiveContainer/restart-test.sh --no-build
 ```
+
+By default, overlay rebuilds use the clean Eevee base IPA at:
+
+```text
+/Users/williamxu/Downloads/EeveeSpotify-6.6.2-9.1.28.ipa
+```
+
+Override with `BASE_IPA=/path/to/base.ipa` if needed.
 
 Run these one at a time:
 
@@ -61,7 +64,7 @@ Run these one at a time:
 ```
 
 Each row tap starts a fresh 90 second probe session. Events include a monotonic
-`#sequence` in the dashboard so the path can be reconstructed in order.
+`sequence` in the phone-side JSONL so the path can be reconstructed in order.
 
 Immediately after the iPhone shows the prompt/playback result, pull and
 summarize the phone-side logs:
@@ -77,6 +80,8 @@ whether row/tap probes fired, and whether any native method candidates returned.
 
 ```text
 probe-session started
+premium-gate
+prompt
 native-playback press-path
 native-method return
 uicontrol sendAction

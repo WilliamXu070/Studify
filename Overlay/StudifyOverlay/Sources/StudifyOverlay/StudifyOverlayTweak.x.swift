@@ -72,7 +72,7 @@ func studifyOverlayLog(_ message: String) {
 struct StudifyOverlay: Tweak {
     init() {
         studifyOverlayLog("Studify overlay starting")
-        studifyOverlayLog("Studify server URL=\(studifyOverlayResolvedServerURLString())")
+        studifyOverlayLog("Studify probe upload enabled=\(studifyOverlayProbeUploadIsEnabled())")
 
         if !StudifyOverlayDownloadHookGroup.isActive {
             StudifyOverlayDownloadHookGroup().activate()
@@ -92,6 +92,7 @@ struct StudifyOverlay: Tweak {
                 StudifyOverlayProbeHookGroup().activate()
                 studifyOverlayLog("Activated Studify probe hook group")
             }
+            StudifyPromptPresentationProbe.shared.install()
             StudifyOfflinePathwayProbe.shared.runClassProbeOnce()
             StudifyProbeStreamClient.shared.emit(
                 hook: "overlay",
@@ -236,6 +237,11 @@ private func studifyOverlaySendSignal(from control: UIControl) {
         color: UIColor(red: 0.95, green: 0.62, blue: 0.08, alpha: 0.96),
         duration: 5
     )
+
+    guard !studifyOverlayProbeModeEnabled else {
+        studifyOverlayLog("Download signal skipped while probe mode is local-only")
+        return
+    }
 
     StudifyOverlaySignalClient.shared.startPlaylistJob(playlistURI: playlistURI)
 }

@@ -8,11 +8,21 @@ DEVICE_ID="${DEVICE_ID:-18A702BC-2DAA-5733-ACD8-079DEF96CC95}"
 LIVECONTAINER_BUNDLE_ID="${LIVECONTAINER_BUNDLE_ID:-com.kdt.livecontainer.25P4CVCPW5}"
 SPOTIFY_VIRTUAL_CONTAINER="${SPOTIFY_VIRTUAL_CONTAINER:-Documents/Data/Application/6F12DF95-8B98-4013-A346-198A838334A1}"
 TWEAK_FOLDER="${TWEAK_FOLDER:-Documents/Tweaks/StudifySpotify}"
+DEFAULT_BASE_IPA="/Users/williamxu/Downloads/EeveeSpotify-6.6.2-9.1.28.ipa"
+if [ ! -f "$DEFAULT_BASE_IPA" ]; then
+  DEFAULT_BASE_IPA="Outputs/IPAS/EeveeSpotify-6.6.2-9.1.28-patched.ipa"
+fi
+BASE_IPA="${BASE_IPA:-$DEFAULT_BASE_IPA}"
 DYLIB="${DYLIB:-Outputs/StudifyOverlay/LiveContainer/StudifyOverlay/StudifyOverlay.dylib}"
 ORION_FRAMEWORK="${ORION_FRAMEWORK:-Outputs/StudifyOverlay/LiveContainer/StudifyOverlay/Orion.framework}"
 TEST_MP3="${TEST_MP3:-/private/tmp/studify-test.mp3}"
 SERVER_URL_FILE="${SERVER_URL_FILE:-/private/tmp/studify-server-url.txt}"
 STUDIFY_SERVER_URL="${STUDIFY_SERVER_URL:-}"
+COPY_SERVER_URL="${COPY_SERVER_URL:-0}"
+PROBE_MODE="${PROBE_MODE:-1}"
+PROBE_MODE_FILE="${PROBE_MODE_FILE:-/private/tmp/studify-probe-mode.txt}"
+PROBE_UPLOAD_FILE="${PROBE_UPLOAD_FILE:-/private/tmp/studify-probe-upload.txt}"
+DEVICETCL_TIMEOUT="${DEVICETCL_TIMEOUT:-45}"
 LOG_DEST="${LOG_DEST:-/private/tmp/studify_overlay_debug_latest.log}"
 EMPTY_LOG="${EMPTY_LOG:-/private/tmp/studify-overlay-empty-log.txt}"
 PROBE_DEST="${PROBE_DEST:-/private/tmp/studify_probe_events_latest.jsonl}"
@@ -33,11 +43,15 @@ Environment overrides:
   TEST_MP3
   SERVER_URL_FILE
   STUDIFY_SERVER_URL
+  COPY_SERVER_URL
+  PROBE_MODE
+  PROBE_UPLOAD_FILE
+  DEVICETCL_TIMEOUT
   LOG_DEST
   PROBE_DEST
 
-This builds/copies StudifyOverlay.dylib, optionally refreshes test.mp3 and
-StudifyLibrary/server-url.txt, clears stale overlay/probe logs,
+This builds/copies StudifyOverlay.dylib, optionally refreshes test.mp3,
+enables StudifyLibrary/probe-mode.txt, clears stale overlay/probe logs,
 terminates LiveContainer if running, relaunches it, and pulls the overlay log.
 USAGE
 }
@@ -165,6 +179,7 @@ terminate_livecontainer_if_running() {
   process_output="$(
     xcrun devicectl device info processes \
       --device "$DEVICE_ID" \
+      --timeout "$DEVICETCL_TIMEOUT" \
       --json-output /private/tmp/studify-processes-restart-test.json
   )"
 
@@ -185,7 +200,7 @@ terminate_livecontainer_if_running() {
 }
 
 if [ "$NO_BUILD" = "0" ]; then
-  run ./build-studify-overlay.sh
+  run ./build-studify-overlay.sh "$BASE_IPA"
   run Tests/StudifyDiagnostics/overlay-artifact-check.sh
 else
   run Tests/StudifyDiagnostics/overlay-artifact-check.sh
@@ -272,9 +287,10 @@ fi
 
 if [ -n "$STUDIFY_SERVER_URL" ]; then
   printf '%s\n' "$STUDIFY_SERVER_URL" > "$SERVER_URL_FILE"
+  COPY_SERVER_URL=1
 fi
 
-if [ -f "$SERVER_URL_FILE" ]; then
+if [ "$COPY_SERVER_URL" = "1" ] && [ -f "$SERVER_URL_FILE" ]; then
   run xcrun devicectl device copy to \
     --device "$DEVICE_ID" \
     --domain-type appDataContainer \
@@ -283,7 +299,28 @@ if [ -f "$SERVER_URL_FILE" ]; then
     --destination "$SPOTIFY_VIRTUAL_CONTAINER/Documents/StudifyLibrary/server-url.txt" \
     --json-output /private/tmp/studify-copy-server-url-restart-test.json
 else
-  echo "warning: server URL file not found at $SERVER_URL_FILE; leaving existing phone config unchanged"
+  echo "server URL copy skipped; probe mode writes local phone logs only"
+fi
+
+if [ "$PROBE_MODE" != "0" ]; then
+  printf 'on\n' > "$PROBE_MODE_FILE"
+  printf 'off\n' > "$PROBE_UPLOAD_FILE"
+  run xcrun devicectl device copy to \
+    --device "$DEVICE_ID" \
+    --domain-type appDataContainer \
+    --domain-identifier "$LIVECONTAINER_BUNDLE_ID" \
+    --source "$PROBE_MODE_FILE" \
+    --destination "$SPOTIFY_VIRTUAL_CONTAINER/Documents/StudifyLibrary/probe-mode.txt" \
+    --json-output /private/tmp/studify-copy-probe-mode-restart-test.json
+  run xcrun devicectl device copy to \
+    --device "$DEVICE_ID" \
+    --domain-type appDataContainer \
+    --domain-identifier "$LIVECONTAINER_BUNDLE_ID" \
+    --source "$PROBE_UPLOAD_FILE" \
+    --destination "$SPOTIFY_VIRTUAL_CONTAINER/Documents/StudifyLibrary/probe-upload.txt" \
+    --json-output /private/tmp/studify-copy-probe-upload-restart-test.json
+else
+  echo "probe mode copy skipped because PROBE_MODE=0"
 fi
 
 printf '' > "$EMPTY_LOG"

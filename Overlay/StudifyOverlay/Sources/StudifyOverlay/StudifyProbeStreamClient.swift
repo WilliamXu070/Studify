@@ -11,6 +11,7 @@ final class StudifyProbeStreamClient {
     private var sessionId = UUID().uuidString
     private var sequence = 0
     private var lastSentByKey: [String: Date] = [:]
+    private var didLogLocalOnlyMode = false
 
     private init() { }
 
@@ -114,13 +115,6 @@ final class StudifyProbeStreamClient {
         sequence += 1
         let eventSequence = sequence
 
-        let serverURLString = studifyOverlayResolvedServerURLString()
-        guard let baseURL = URL(string: serverURLString) else {
-            studifyOverlayLog("Probe stream invalid server URL: \(serverURLString)")
-            return
-        }
-
-        let endpoint = baseURL.appendingPathComponent("v1/probe/events")
         var payload: [String: Any] = [:]
         payload["deviceId"] = UIDevice.current.identifierForVendor?.uuidString ?? "unknown-device"
         payload["deviceName"] = UIDevice.current.name
@@ -137,6 +131,21 @@ final class StudifyProbeStreamClient {
 
         appendLocalProbeEvent(payload)
 
+        guard studifyOverlayProbeUploadIsEnabled() else {
+            if !didLogLocalOnlyMode {
+                didLogLocalOnlyMode = true
+                studifyOverlayLog("Probe stream local-only mode active; skipping server upload")
+            }
+            return
+        }
+
+        let serverURLString = studifyOverlayResolvedServerURLString()
+        guard let baseURL = URL(string: serverURLString) else {
+            studifyOverlayLog("Probe stream invalid server URL: \(serverURLString)")
+            return
+        }
+
+        let endpoint = baseURL.appendingPathComponent("v1/probe/events")
         guard JSONSerialization.isValidJSONObject(payload),
               let body = try? JSONSerialization.data(withJSONObject: payload, options: []) else {
             studifyOverlayLog("Probe stream could not encode event hook=\(hook) phase=\(phase)")
