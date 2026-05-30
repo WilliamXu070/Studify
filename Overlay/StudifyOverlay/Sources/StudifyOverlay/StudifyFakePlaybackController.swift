@@ -36,6 +36,7 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
     private weak var currentVisualRow: UIView?
     private weak var currentMiniPlayerView: UIView?
     private var cachedOfflineModeActive = false
+    private var offlineRowPressSimulationGraceUntil = Date(timeIntervalSince1970: 0)
     private var visualGeneration = 0
 
     private var visibleTracks: [StudifyFakeTrack] = []
@@ -158,12 +159,13 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
     private func refreshVisiblePlaylistState() {
         guard let window = activeWindow() else { return }
         let offlineModeActive = isSpotifyOfflineModeActive(in: window)
-        if cachedOfflineModeActive != offlineModeActive {
-            studifyOverlayLog("Studify offline simulation mode active=\(offlineModeActive)")
+        let effectiveOfflineModeActive = offlineModeActive || isOfflineRowPressSimulationGraceActive()
+        if cachedOfflineModeActive != effectiveOfflineModeActive {
+            studifyOverlayLog("Studify offline simulation mode active=\(effectiveOfflineModeActive) raw=\(offlineModeActive)")
         }
-        cachedOfflineModeActive = offlineModeActive
+        cachedOfflineModeActive = effectiveOfflineModeActive
 
-        guard offlineModeActive else {
+        guard effectiveOfflineModeActive else {
             if studifyOverlayProbeModeEnabled {
                 installTapRecognizerIfNeeded(on: window)
             } else {
@@ -189,7 +191,7 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         var totalMutations = 0
         var didResolveCurrentVisualRow = false
         for row in rows {
-            if offlineModeActive {
+            if effectiveOfflineModeActive {
                 totalMutations += enableNativeInteraction(in: row)
             }
             guard let rawTrack = track(from: row) else {
@@ -205,11 +207,11 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
                 && !didResolveCurrentVisualRow
                 && track == currentTrack
 
-            if offlineModeActive, isExactCurrentRow || shouldAdoptCurrentRow {
+            if effectiveOfflineModeActive, isExactCurrentRow || shouldAdoptCurrentRow {
                 currentVisualRow = row
                 didResolveCurrentVisualRow = true
                 applySpotifyPlayingVisual(to: row, animated: false)
-            } else if offlineModeActive {
+            } else if effectiveOfflineModeActive {
                 clearSpotifyPlayingVisual(from: row)
             }
             if studifyOverlayProbeModeEnabled {
@@ -359,6 +361,7 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
 
         currentTrack = track
         publishFakeSpotifyTrack(track, reason: source)
+        extendOfflineRowPressSimulationGrace(reason: source)
         if !visibleTracks.contains(track) {
             visibleTracks.insert(track, at: 0)
         }
@@ -372,6 +375,7 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         }
         StudifySpotifyStateBridge.shared.recordFakeSelection(title: track.title, artist: track.artist, reason: source)
         applyNativeMiniPlayerVisual(track: track)
+        scheduleFakeSpotifyTrackReassertions(track, row: row, source: source)
         if studifyOverlayProbeModeEnabled, let row {
             logNativePlaybackStateProbe(row: row, track: track, reason: "passive-row-tap")
             let beforeRowSnapshot = snapshotTree(from: row, rootName: "row")
@@ -431,6 +435,43 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
             reason: reason
         )
         studifyOverlayLog("Native playback bridge published fake Spotify state title=\(track.title) artist=\(track.artist) uri=\(uri) reason=\(reason)")
+    }
+
+    private func extendOfflineRowPressSimulationGrace(reason: String) {
+        offlineRowPressSimulationGraceUntil = Date().addingTimeInterval(8)
+        studifyOverlayLog("Native playback bridge holding offline fake state after row press reason=\(reason)")
+    }
+
+    private func isOfflineRowPressSimulationGraceActive(now: Date = Date()) -> Bool {
+        currentTrack != nil && now < offlineRowPressSimulationGraceUntil
+    }
+
+    private func scheduleFakeSpotifyTrackReassertions(_ track: StudifyFakeTrack, row: UIView?, source: String) {
+        let delays: [TimeInterval] = [0.08, 0.25, 0.75, 1.5, 3.0]
+        for delay in delays {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak row] in
+                guard let self else { return }
+                guard self.currentTrack == track, self.isOfflineRowPressSimulationGraceActive() else { return }
+
+                let delayLabel = String(format: "%.2f", delay)
+                self.publishFakeSpotifyTrack(track, reason: "\(source)-reassert-\(delayLabel)s")
+                StudifySpotifyStateBridge.shared.recordFakeSelection(
+                    title: track.title,
+                    artist: track.artist,
+                    reason: "\(source)-reassert-\(delayLabel)s"
+                )
+                StudifySpotifyStateBridge.shared.logCurrentSpotifyState(
+                    reason: "\(source)-reassert-\(delayLabel)s",
+                    force: true
+                )
+
+                if let row, row.window != nil {
+                    self.setCurrentSpotifyVisualRow(row)
+                }
+                self.applyNativeMiniPlayerVisual(track: track)
+                studifyOverlayLog("Native playback bridge reasserted fake Spotify state title=\(track.title) artist=\(track.artist) delay=\(delayLabel)s")
+            }
+        }
     }
 
     private func simulatedTrack(for rawTrack: StudifyFakeTrack, source: String) -> StudifyFakeTrack {

@@ -116,11 +116,17 @@ Native playback bridge using seeded track for offline row press sourceTitle=...
 Spotify state bridge fakeTrack set title=Gimme Love artist=Vista Kicks uri=spotify:track:3CUovld1O1HdAOrkgMlvNx reason=passive row tap
 Native playback bridge published fake Spotify state title=Gimme Love artist=Vista Kicks uri=spotify:track:3CUovld1O1HdAOrkgMlvNx reason=passive row tap
 Native playback bridge started title=Gimme Love artist=Vista Kicks source=passive row tap isPlaying=true
+Native playback bridge reasserted fake Spotify state title=Gimme Love artist=Vista Kicks delay=...
 ```
 
 If `Documents/StudifyLibrary/audio/test.mp3` exists, AVAudioPlayer should play
 that file. If it is missing, the seeded Gimme Love path can still simulate
 `isPlaying=true` for state/visual testing.
+
+The delayed reassert lines matter. A row press lets Spotify's own tap/action
+handler run at nearly the same time as Studify's gesture recognizer. Re-publishing
+the same fake title/artist/URI shortly after the tap keeps the recovered
+`Gimme Love` state from being overwritten by Spotify's delayed repaint.
 
 ## Manual Verification
 

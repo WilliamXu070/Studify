@@ -12,6 +12,7 @@ if [ ! -f "$DEFAULT_BASE_IPA" ]; then
 fi
 BASE_IPA="${1:-${BASE_IPA:-$DEFAULT_BASE_IPA}}"
 TMP_DIR="/private/tmp/studify-overlay-frameworks"
+ORION_STAGE="$TMP_DIR/Orion.framework"
 
 export THEOS="${THEOS:-/Users/williamxu/theos}"
 export THEOS_PACKAGE_SCHEME="${THEOS_PACKAGE_SCHEME:-rootless}"
@@ -46,7 +47,10 @@ cp "$PROJECT_DIR/.theos/_/var/jb/Library/MobileSubstrate/DynamicLibraries/Studif
 if [ -f "$BASE_IPA" ]; then
   if unzip -l "$BASE_IPA" "Payload/Spotify.app/Frameworks/Orion.framework/*" >/dev/null 2>&1; then
     unzip -q "$BASE_IPA" "Payload/Spotify.app/Frameworks/Orion.framework/*" -d "$TMP_DIR"
-    ditto --noextattr --norsrc "$TMP_DIR/Payload/Spotify.app/Frameworks/Orion.framework" "$LIVE_DIR/Orion.framework"
+    ditto --noextattr --norsrc "$TMP_DIR/Payload/Spotify.app/Frameworks/Orion.framework" "$ORION_STAGE"
+    xattr -cr "$ORION_STAGE"
+    codesign --force --sign - --timestamp=none "$ORION_STAGE"
+    ditto --noextattr --norsrc "$ORION_STAGE" "$LIVE_DIR/Orion.framework"
   else
     echo "warning: base IPA does not contain Orion.framework; LiveContainer may need Orion from another source"
   fi
@@ -60,10 +64,6 @@ install_name_tool \
   "$LIVE_DIR/StudifyOverlay.dylib"
 
 xattr -cr "$LIVE_DIR"
-if [ -d "$LIVE_DIR/Orion.framework" ]; then
-  xattr -cr "$LIVE_DIR/Orion.framework"
-  codesign --force --sign - --timestamp=none "$LIVE_DIR/Orion.framework"
-fi
 codesign --force --sign - --timestamp=none "$LIVE_DIR/StudifyOverlay.dylib"
 
 rm -f "$OUTPUT_ZIP"

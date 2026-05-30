@@ -64,10 +64,14 @@ assert(
     fakePlayback.includes('StudifyFakeTrack(title: "Gimme Love", artist: "Vista Kicks")') &&
     fakePlayback.includes('source == "passive row tap"') &&
     fakePlayback.includes("Native playback bridge using seeded track for offline row press") &&
+    fakePlayback.includes("scheduleFakeSpotifyTrackReassertions") &&
+    fakePlayback.includes("holding offline fake state after row press") &&
     fakePlayback.includes("startLocalAudioOrSeededSilence(for: track)") &&
     fakePlayback.includes("Native playback bridge simulating seeded offline playback without local audio") &&
-    read("Overlay/StudifyOverlay/Sources/StudifyOverlay/StudifySpotifyStateBridge.x.swift").includes("studify-fake{title="),
-  "offline simulation must seed Gimme Love only from an offline row press and publish it through the state bridge"
+    read("Overlay/StudifyOverlay/Sources/StudifyOverlay/StudifySpotifyStateBridge.x.swift").includes("studify-fake{title=") &&
+    read("Overlay/StudifyOverlay/Sources/StudifyOverlay/StudifySpotifyStateBridge.x.swift").includes("overrideTrackURI") &&
+    read("Overlay/StudifyOverlay/Sources/StudifyOverlay/StudifySpotifyStateBridge.x.swift").includes("func URI() -> NSURL?"),
+  "offline simulation must seed Gimme Love only from an offline row press and reassert title/artist/URI through the state bridge"
 );
 
 assert(

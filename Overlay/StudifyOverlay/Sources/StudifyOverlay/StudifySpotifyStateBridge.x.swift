@@ -128,6 +128,12 @@ final class StudifySpotifyStateBridge {
         return fake.artist
     }
 
+    func overrideTrackURI(_ original: @autoclosure () -> NSURL?) -> NSURL? {
+        guard let fake = currentFakeTrackState() else { return original() }
+        logFakeOverrideIfNeeded(selector: "URI", fake: fake)
+        return NSURL(string: fake.uri) ?? original()
+    }
+
     func overrideMetadata(_ original: @autoclosure () -> [String: String]) -> [String: String] {
         var metadata = original()
         guard let fake = currentFakeTrackState() else { return metadata }
@@ -476,8 +482,16 @@ class StudifySPTPlayerTrackImplementationHook: ClassHook<NSObject> {
         StudifySpotifyStateBridge.shared.overrideTrackTitle(orig.trackTitle())
     }
 
+    func artistTitle() -> String {
+        StudifySpotifyStateBridge.shared.overrideArtistTitle(orig.artistTitle())
+    }
+
     func artistName() -> String {
         StudifySpotifyStateBridge.shared.overrideArtistName(orig.artistName())
+    }
+
+    func URI() -> NSURL? {
+        StudifySpotifyStateBridge.shared.overrideTrackURI(orig.URI())
     }
 
     func metadata() -> [String: String] {
