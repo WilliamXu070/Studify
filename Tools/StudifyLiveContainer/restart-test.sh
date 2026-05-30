@@ -8,6 +8,7 @@ DEVICE_ID="${DEVICE_ID:-18A702BC-2DAA-5733-ACD8-079DEF96CC95}"
 LIVECONTAINER_BUNDLE_ID="${LIVECONTAINER_BUNDLE_ID:-com.kdt.livecontainer.25P4CVCPW5}"
 SPOTIFY_VIRTUAL_CONTAINER="${SPOTIFY_VIRTUAL_CONTAINER:-Documents/Data/Application/6F12DF95-8B98-4013-A346-198A838334A1}"
 TWEAK_FOLDER="${TWEAK_FOLDER:-Documents/Tweaks/StudifySpotify}"
+TWEAK_FOLDER_ALIASES="${TWEAK_FOLDER_ALIASES:-Documents/Tweaks/StudifyOverlay}"
 DEFAULT_BASE_IPA="/Users/williamxu/Downloads/EeveeSpotify-6.6.2-9.1.28.ipa"
 if [ ! -f "$DEFAULT_BASE_IPA" ]; then
   DEFAULT_BASE_IPA="Outputs/IPAS/EeveeSpotify-6.6.2-9.1.28-patched.ipa"
@@ -40,6 +41,7 @@ Environment overrides:
   LIVECONTAINER_BUNDLE_ID
   SPOTIFY_VIRTUAL_CONTAINER
   TWEAK_FOLDER
+  TWEAK_FOLDER_ALIASES
   DYLIB
   ORION_FRAMEWORK
   TEST_MP3
@@ -80,12 +82,13 @@ done
 
 run() {
   echo "+ $*"
-  if "$@"; then
+  "$@"
+
+  local status=$?
+  if [ "$status" -eq 0 ]; then
     return 0
   fi
 
-  local status
-  status=$?
   if [ "${1:-}" = "xcrun" ] && [ "${2:-}" = "devicectl" ]; then
     for attempt in 2 3; do
       echo "warning: devicectl command failed with status $status; retrying attempt $attempt/3" >&2
@@ -184,6 +187,60 @@ verify_remote_macho_file() {
   echo "verified phone Mach-O payload: $label $actual_hash"
 }
 
+tweak_folders_to_update() {
+  printf '%s\n' "$TWEAK_FOLDER"
+
+  local alias
+  for alias in $TWEAK_FOLDER_ALIASES; do
+    [ -n "$alias" ] || continue
+    [ "$alias" = "$TWEAK_FOLDER" ] && continue
+    printf '%s\n' "$alias"
+  done
+}
+
+copy_tweak_payload_to_folder() {
+  local folder="$1"
+  local label
+
+  label="$(basename "$folder")"
+
+  run xcrun devicectl device copy to \
+    --device "$DEVICE_ID" \
+    --domain-type appDataContainer \
+    --domain-identifier "$LIVECONTAINER_BUNDLE_ID" \
+    --source "$DYLIB" \
+    --destination "$folder/StudifyOverlay.dylib" \
+    --json-output "/private/tmp/studify-copy-dylib-${label}-restart-test.json"
+
+  run xcrun devicectl device copy to \
+    --device "$DEVICE_ID" \
+    --domain-type appDataContainer \
+    --domain-identifier "$LIVECONTAINER_BUNDLE_ID" \
+    --source "$ORION_FRAMEWORK" \
+    --destination "$folder/Orion.framework" \
+    --json-output "/private/tmp/studify-copy-orion-${label}-restart-test.json"
+
+  verify_remote_macho_file \
+    "StudifyOverlay.dylib-${label}" \
+    "$DYLIB" \
+    "$folder/StudifyOverlay.dylib"
+
+  verify_remote_macho_file \
+    "Orion-${label}" \
+    "$ORION_FRAMEWORK/Orion" \
+    "$folder/Orion.framework/Orion"
+
+  verify_remote_exact_file \
+    "Orion-Info.plist-${label}" \
+    "$ORION_FRAMEWORK/Info.plist" \
+    "$folder/Orion.framework/Info.plist"
+
+  if ! file_contains_string "/private/tmp/studify-verify-StudifyOverlay.dylib-${label}-$$" "Offline playable spoof groups skipped"; then
+    echo "ERROR: phone dylib in $folder does not contain the stable offline-spoof safety marker" >&2
+    exit 1
+  fi
+}
+
 file_contains_string() {
   local file="$1"
   local marker="$2"
@@ -270,41 +327,11 @@ echo "  Orion.framework/Info.plist $(hash_file "$ORION_FRAMEWORK/Info.plist")"
 
 terminate_livecontainer_if_running
 
-run xcrun devicectl device copy to \
-  --device "$DEVICE_ID" \
-  --domain-type appDataContainer \
-  --domain-identifier "$LIVECONTAINER_BUNDLE_ID" \
-  --source "$DYLIB" \
-  --destination "$TWEAK_FOLDER/StudifyOverlay.dylib" \
-  --json-output /private/tmp/studify-copy-dylib-restart-test.json
-
-run xcrun devicectl device copy to \
-  --device "$DEVICE_ID" \
-  --domain-type appDataContainer \
-  --domain-identifier "$LIVECONTAINER_BUNDLE_ID" \
-  --source "$ORION_FRAMEWORK" \
-  --destination "$TWEAK_FOLDER/Orion.framework" \
-  --json-output /private/tmp/studify-copy-orion-restart-test.json
-
-verify_remote_macho_file \
-  "StudifyOverlay.dylib" \
-  "$DYLIB" \
-  "$TWEAK_FOLDER/StudifyOverlay.dylib"
-
-verify_remote_macho_file \
-  "Orion" \
-  "$ORION_FRAMEWORK/Orion" \
-  "$TWEAK_FOLDER/Orion.framework/Orion"
-
-verify_remote_exact_file \
-  "Orion-Info.plist" \
-  "$ORION_FRAMEWORK/Info.plist" \
-  "$TWEAK_FOLDER/Orion.framework/Info.plist"
-
-if ! file_contains_string "/private/tmp/studify-verify-StudifyOverlay.dylib-$$" "Offline playable spoof groups skipped"; then
-  echo "ERROR: phone dylib does not contain the stable offline-spoof safety marker" >&2
-  exit 1
-fi
+while IFS= read -r tweak_folder; do
+  [ -n "$tweak_folder" ] || continue
+  echo "copying tweak payload to $tweak_folder"
+  copy_tweak_payload_to_folder "$tweak_folder"
+done < <(tweak_folders_to_update)
 
 if [ -f "$TEST_MP3" ]; then
   run xcrun devicectl device copy to \

@@ -44,7 +44,11 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
     private var isPlaying = false
     private var progress: Float = 0
     private var directMiniPlayerMutationEnabled: Bool {
-        UserDefaults.standard.bool(forKey: "StudifyAllowDirectMiniPlayerMutation")
+        if UserDefaults.standard.object(forKey: "StudifyAllowDirectMiniPlayerMutation") != nil {
+            return UserDefaults.standard.bool(forKey: "StudifyAllowDirectMiniPlayerMutation")
+        }
+
+        return !studifySpotifyStateBridgeEnabled
     }
 
     private override init() {
@@ -125,6 +129,9 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
 
         let intent = playbackIntent(from: control, actionName: actionName)
         guard let intent else { return }
+        if currentTrack == nil {
+            seedOfflinePlaybackIntentIfNeeded(reason: "passive spotify control \(intent.rawValue)")
+        }
         guard currentTrack != nil || !visibleTracks.isEmpty else { return }
 
         let now = Date()
@@ -314,11 +321,12 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
             return
         }
 
-        guard let track = track(from: row) else {
-            return
+        let rawTrack = track(from: row) ?? seededFallbackTrack(from: row)
+        if rawTrack == studifySeededGimmeLoveTrack {
+            studifyOverlayLog("Native playback bridge using seeded fallback for offline row press without readable row track")
         }
 
-        start(track: track, row: row, source: "passive row tap")
+        start(track: rawTrack, row: row, source: "passive row tap")
     }
 
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
@@ -437,6 +445,24 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         studifyOverlayLog("Native playback bridge published fake Spotify state title=\(track.title) artist=\(track.artist) uri=\(uri) reason=\(reason)")
     }
 
+    private func seedOfflinePlaybackIntentIfNeeded(reason: String) {
+        guard cachedOfflineModeActive, currentTrack == nil else { return }
+
+        currentTrack = studifySeededGimmeLoveTrack
+        progress = 0
+        if !visibleTracks.contains(studifySeededGimmeLoveTrack) {
+            visibleTracks.insert(studifySeededGimmeLoveTrack, at: 0)
+        }
+        publishFakeSpotifyTrack(studifySeededGimmeLoveTrack, reason: "seed-\(reason)")
+        extendOfflineRowPressSimulationGrace(reason: "seed-\(reason)")
+        StudifySpotifyStateBridge.shared.recordFakeSelection(
+            title: studifySeededGimmeLoveTrack.title,
+            artist: studifySeededGimmeLoveTrack.artist,
+            reason: "seed-\(reason)"
+        )
+        studifyOverlayLog("Native playback bridge seeded offline user intent title=\(studifySeededGimmeLoveTrack.title) artist=\(studifySeededGimmeLoveTrack.artist) uri=\(studifySeededGimmeLoveURI) reason=\(reason)")
+    }
+
     private func extendOfflineRowPressSimulationGrace(reason: String) {
         offlineRowPressSimulationGraceUntil = Date().addingTimeInterval(8)
         studifyOverlayLog("Native playback bridge holding offline fake state after row press reason=\(reason)")
@@ -483,6 +509,18 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
 
     private func canonicalTrack(_ track: StudifyFakeTrack) -> StudifyFakeTrack {
         seededSpotifyURI(for: track) == nil ? track : studifySeededGimmeLoveTrack
+    }
+
+    private func seededFallbackTrack(from row: UIView) -> StudifyFakeTrack {
+        let values = usefulTextValues(in: row, maxDepth: 6)
+        let title = values.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let artist = values.dropFirst().first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        if !title.isEmpty || !artist.isEmpty {
+            studifyOverlayLog("Native playback bridge row fallback sourceTitle=\(title.isEmpty ? "unknown" : title) sourceArtist=\(artist.isEmpty ? "unknown" : artist)")
+        }
+
+        return studifySeededGimmeLoveTrack
     }
 
     private func spotifyURI(for track: StudifyFakeTrack) -> String {

@@ -21,7 +21,19 @@ DEVICE_ID="18A702BC-2DAA-5733-ACD8-079DEF96CC95"
 LIVECONTAINER_BUNDLE_ID="com.kdt.livecontainer.25P4CVCPW5"
 SPOTIFY_VIRTUAL_CONTAINER="Documents/Data/Application/6F12DF95-8B98-4013-A346-198A838334A1"
 TWEAK_FOLDER="Documents/Tweaks/StudifySpotify"
+TWEAK_FOLDER_ALIASES="Documents/Tweaks/StudifyOverlay"
 ```
+
+The deploy script copies the overlay into both tweak folders by default because
+older LiveContainer setup notes used `StudifyOverlay` as the app-specific folder
+name. This keeps the phone-side setting from silently loading a stale folder.
+
+This pathway applies only to Spotify launched from inside LiveContainer. The
+directly installed bundle `com.spotify.client.25P4CVCPW5` has its own app data
+container and does not consume LiveContainer's `Documents/Tweaks/...` payload.
+For that direct app, build `Outputs/IPAS/StudifyFull-9.1.28-25P4CVCPW5.ipa`
+with `./build-studify-full-ipa.sh` and install that IPA through the normal app
+installation path.
 
 The local audio proof file lives inside LiveContainer's virtual Spotify container:
 
@@ -34,7 +46,7 @@ Documents/Data/Application/6F12DF95-8B98-4013-A346-198A838334A1/Documents/Studif
 From the repo root:
 
 ```sh
-./Tools/StudifyLiveContainer/restart-test.sh
+PROBE_MODE=0 COPY_SERVER_URL=0 STATE_BRIDGE=0 ./Tools/StudifyLiveContainer/restart-test.sh --no-build
 ```
 
 That script:
@@ -50,8 +62,9 @@ That script:
 9. Compares the exact SHA-256 hash for `Orion.framework/Info.plist`.
 10. Verifies the copied phone dylib still contains the stable offline-spoof safety marker.
 11. Copies `/private/tmp/studify-test.mp3` into the virtual Spotify Documents folder if that MP3 exists.
-12. Relaunches LiveContainer.
-13. Pulls `tmp/studify_overlay_debug.log` back to `/private/tmp/studify_overlay_debug_latest.log`.
+12. Writes `probe-mode.txt`, `probe-upload.txt`, and `state-bridge.txt` so stale phone state cannot re-enable the startup-crash bridge.
+13. Relaunches LiveContainer.
+14. Pulls `tmp/studify_overlay_debug.log` back to `/private/tmp/studify_overlay_debug_latest.log`.
 
 The script should stop before launch if a stale or corrupted phone-side copy is detected.
 
@@ -264,7 +277,7 @@ Those mean the old dylib is still loaded, autoplay code is still present, or the
 
 LiveContainer has two relevant storage areas:
 
-- `Documents/Tweaks/StudifySpotify`: where LiveContainer loads tweak dylibs/frameworks from. For Studify, this folder must contain `StudifyOverlay.dylib` and `Orion.framework`.
+- `Documents/Tweaks/StudifySpotify` or `Documents/Tweaks/StudifyOverlay`: where LiveContainer loads tweak dylibs/frameworks from. For Studify, the active app-specific folder must contain `StudifyOverlay.dylib` and `Orion.framework`.
 - `Documents/Data/Application/<uuid>`: the virtual app container Spotify sees as its home directory.
 
 The tweak file belongs in the tweak folder. Audio files belong in Spotify's virtual app container.

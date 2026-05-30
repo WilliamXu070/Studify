@@ -25,6 +25,7 @@ const onlineProbe = read("Overlay/StudifyOverlay/Sources/StudifyOverlay/StudifyO
 const bannerProbe = read("Overlay/StudifyOverlay/Sources/StudifyOverlay/StudifyBannerStateProbe.x.swift");
 const promptProbe = read("Overlay/StudifyOverlay/Sources/StudifyOverlay/StudifyPromptPresentationProbe.x.swift");
 const restartTest = read("Tools/StudifyLiveContainer/restart-test.sh");
+const fullIpaBuild = read("build-studify-full-ipa.sh");
 
 assert(
   serverConfig.includes("StudifyLibrary/probe-mode.txt") &&
@@ -65,14 +66,18 @@ assert(
     fakePlayback.includes('StudifyFakeTrack(title: "Gimme Love", artist: "Vista Kicks")') &&
     fakePlayback.includes('source == "passive row tap"') &&
     fakePlayback.includes("Native playback bridge using seeded track for offline row press") &&
+    fakePlayback.includes("Native playback bridge using seeded fallback for offline row press without readable row track") &&
+    fakePlayback.includes("seedOfflinePlaybackIntentIfNeeded") &&
+    fakePlayback.includes("Native playback bridge seeded offline user intent") &&
     fakePlayback.includes("scheduleFakeSpotifyTrackReassertions") &&
     fakePlayback.includes("holding offline fake state after row press") &&
+    fakePlayback.includes("return !studifySpotifyStateBridgeEnabled") &&
     fakePlayback.includes("startLocalAudioOrSeededSilence(for: track)") &&
     fakePlayback.includes("Native playback bridge simulating seeded offline playback without local audio") &&
     read("Overlay/StudifyOverlay/Sources/StudifyOverlay/StudifySpotifyStateBridge.x.swift").includes("studify-fake{title=") &&
     read("Overlay/StudifyOverlay/Sources/StudifyOverlay/StudifySpotifyStateBridge.x.swift").includes("overrideTrackURI") &&
     read("Overlay/StudifyOverlay/Sources/StudifyOverlay/StudifySpotifyStateBridge.x.swift").includes("func URI() -> NSURL?"),
-  "offline simulation must seed Gimme Love only from an offline row press and reassert title/artist/URI through the state bridge"
+  "offline simulation must seed Gimme Love from explicit offline user intents and reassert title/artist/URI through the state bridge"
 );
 
 assert(
@@ -88,15 +93,33 @@ assert(
     restartTest.includes("StudifyLibrary/probe-mode.txt") &&
     restartTest.includes("StudifyLibrary/probe-upload.txt") &&
     restartTest.includes("StudifyLibrary/state-bridge.txt") &&
+    restartTest.includes("TWEAK_FOLDER_ALIASES") &&
+    restartTest.includes("Documents/Tweaks/StudifyOverlay") &&
+    restartTest.includes("copy_tweak_payload_to_folder") &&
     restartTest.includes("state bridge disabled on phone; cleared stale startup-crash path") &&
     restartTest.includes("server URL copy skipped; probe mode writes local phone logs only") &&
     restartTest.includes("probe mode disabled on phone; cleared stale probe-mode.txt state") &&
     restartTest.includes("pymobiledevice3") &&
     restartTest.includes("processes pgrep Spotify") &&
+    restartTest.includes('"$@"') &&
+    restartTest.includes("local status=$?") &&
+    restartTest.includes('[ "$status" -eq 0 ]') &&
     restartTest.includes("retrying attempt $attempt/3") &&
     restartTest.includes("/Users/williamxu/Downloads/EeveeSpotify-6.6.2-9.1.28.ipa") &&
     restartTest.includes('run ./build-studify-overlay.sh "$BASE_IPA"'),
   "restart-test must enable local phone probe mode and build overlay against the clean base Eevee IPA"
+);
+
+assert(
+  fullIpaBuild.includes("Building Studify full IPA") &&
+    fullIpaBuild.includes("com.spotify.client.25P4CVCPW5") &&
+    fullIpaBuild.includes("Outputs/StudifyOverlay/StudifyOverlayLatest.deb") &&
+    fullIpaBuild.includes("--overwrite") &&
+    fullIpaBuild.includes("-b \"$BUNDLE_ID\"") &&
+    fullIpaBuild.includes("CFBundleIdentifier") &&
+    fullIpaBuild.includes("LC_ALL=C grep -aFq") &&
+    fullIpaBuild.includes("Native playback bridge seeded offline user intent"),
+  "full IPA build helper must package the recovered overlay into the standalone Spotify bundle id"
 );
 
 assert(

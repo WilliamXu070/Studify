@@ -40,13 +40,24 @@ LiveContainer.
 Deploy with:
 
 ```sh
-PROBE_MODE=0 COPY_SERVER_URL=0 Tools/StudifyLiveContainer/restart-test.sh --no-build
+PROBE_MODE=0 COPY_SERVER_URL=0 STATE_BRIDGE=0 Tools/StudifyLiveContainer/restart-test.sh --no-build
 ```
 
 If CoreDevice process listing flakes, the script falls back to
 `pymobiledevice3 processes pgrep` before copying. If CoreDevice copy itself
 flakes, manual copy/verify is still valid as long as LiveContainer and the
 virtual Spotify process are terminated before replacing the dylib.
+
+If testing the direct installed Spotify bundle
+`com.spotify.client.25P4CVCPW5`, do not expect LiveContainer logs or tweak
+folders to apply. Build the standalone artifact instead:
+
+```sh
+./build-studify-full-ipa.sh /Users/williamxu/Downloads/EeveeSpotify-6.6.2-9.1.28.ipa
+```
+
+That produces `Outputs/IPAS/StudifyFull-9.1.28-25P4CVCPW5.ipa` with the same
+recovered offline seed behavior embedded in the app.
 
 ## Current Click Flow
 
@@ -61,7 +72,7 @@ User taps playlist song row
   -> window tap recognizer fires
   -> cachedOfflineModeActive must be true
   -> trackRow(startingAt:) finds a Spotify playlist row
-  -> track(from:) extracts the pressed row's visible title/artist
+  -> track(from:) extracts the pressed row's visible title/artist, or falls back to the fixed seed if row text extraction is weak
   -> start(track:row:source: "passive row tap")
   -> source == "passive row tap" maps the pressed row to Gimme Love
   -> setFakeTrack(title:artist:uri:) publishes the seeded Spotify state
@@ -72,6 +83,17 @@ User taps playlist song row
 This means any offline playlist song press can initiate the same known-good
 `Gimme Love` seed. The original pressed title/artist should still be logged as
 `sourceTitle` / `sourceArtist` for debugging.
+
+Spotify playback controls are also treated as explicit user playback intents.
+If a play/pause/next/previous button arrives before a row press has established
+`currentTrack`, the controller seeds `Gimme Love` first, then runs the control
+intent against that fake current track. This recovers the earlier probe-seeding
+behavior without publishing fake state just from opening Spotify.
+
+When `state-bridge.txt` is `off`, direct mini-player mutation is enabled by
+default as the safe visual fallback. When the state bridge is explicitly enabled
+for debugging, state-first mode remains the default unless
+`StudifyAllowDirectMiniPlayerMutation` is set.
 
 ## Key Code Points
 
@@ -90,6 +112,7 @@ handleWindowTap(_:)
 start(track:row:source:)
 simulatedTrack(for:source:)
 publishFakeSpotifyTrack(_:reason:)
+seedOfflinePlaybackIntentIfNeeded(reason:)
 startLocalAudioOrSeededSilence(for:)
 ```
 
@@ -117,6 +140,13 @@ Spotify state bridge fakeTrack set title=Gimme Love artist=Vista Kicks uri=spoti
 Native playback bridge published fake Spotify state title=Gimme Love artist=Vista Kicks uri=spotify:track:3CUovld1O1HdAOrkgMlvNx reason=passive row tap
 Native playback bridge started title=Gimme Love artist=Vista Kicks source=passive row tap isPlaying=true
 Native playback bridge reasserted fake Spotify state title=Gimme Love artist=Vista Kicks delay=...
+```
+
+If the first user intent is a Spotify playback control instead of a row, expect:
+
+```text
+Native playback bridge seeded offline user intent title=Gimme Love artist=Vista Kicks uri=spotify:track:3CUovld1O1HdAOrkgMlvNx reason=passive spotify control ...
+Passive playback control probe intent=...
 ```
 
 If `Documents/StudifyLibrary/audio/test.mp3` exists, AVAudioPlayer should play

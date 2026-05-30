@@ -37,6 +37,22 @@ Outputs/StudifyOverlay/LiveContainer/StudifyOverlay/
 Outputs/StudifyOverlay/StudifyOverlay-LiveContainer.zip
 ```
 
+For the separately installed Spotify bundle, build a full injected IPA instead:
+
+```bash
+./build-studify-full-ipa.sh /Users/williamxu/Downloads/EeveeSpotify-6.6.2-9.1.28.ipa
+```
+
+Default output:
+
+```text
+Outputs/IPAS/StudifyFull-9.1.28-25P4CVCPW5.ipa
+```
+
+The full IPA helper uses the latest `StudifyOverlayLatest.deb`, forces the
+current standalone bundle id `com.spotify.client.25P4CVCPW5`, and verifies that
+the embedded overlay contains the recovered offline seed marker.
+
 ## LiveContainer Use
 
 Recommended setup:
@@ -50,6 +66,11 @@ Recommended setup:
 7. Open `Settings`.
 8. Set `Tweak Folder` to `StudifyOverlay`.
 9. Launch Spotify.
+
+The Mac deploy helper also mirrors the same payload into
+`Documents/Tweaks/StudifySpotify` for newer runbooks. The active LiveContainer
+setting may use either folder as long as the folder contains the latest
+`StudifyOverlay.dylib` and `Orion.framework`.
 
 Expected banners:
 
@@ -76,6 +97,11 @@ not:
 ```text
 Studify-patched Eevee IPA + StudifyOverlay tweak folder
 ```
+
+The direct iOS app bundle `com.spotify.client.25P4CVCPW5` is a different
+deployment shape from LiveContainer's inner Spotify. Launching that bundle does
+not read `Documents/Tweaks/...` from LiveContainer's data container; use the
+full IPA artifact when testing the direct app.
 
 ## Server
 

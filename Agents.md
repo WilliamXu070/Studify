@@ -27,13 +27,18 @@ This file documents the end-to-end change flow we use for Studify overlay tweaks
   - `Outputs/StudifyOverlay/StudifyOverlayLatest.deb`
   - `Outputs/StudifyOverlay/LiveContainer/StudifyOverlay/StudifyOverlay.dylib`
   - `Outputs/StudifyOverlay/LiveContainer/StudifyOverlay/Orion.framework`
+- If testing the separately installed Spotify bundle instead of Spotify launched
+  inside LiveContainer, build a full injected IPA:
+  - `./build-studify-full-ipa.sh /Users/williamxu/Downloads/EeveeSpotify-6.6.2-9.1.28.ipa`
+  - output: `Outputs/IPAS/StudifyFull-9.1.28-25P4CVCPW5.ipa`
+  - default bundle id: `com.spotify.client.25P4CVCPW5`
 
 ## 5) Push to iPhone (LiveContainer)
 - Use repo helper with no server upload:
   - `PROBE_MODE=0 COPY_SERVER_URL=0 Tools/StudifyLiveContainer/restart-test.sh --no-build`
 - Script behavior:
   - Verifies overlay symbols locally.
-  - Copies `StudifyOverlay.dylib` and `Orion.framework` into `Documents/Tweaks/StudifySpotify/` inside LiveContainer data container.
+  - Copies `StudifyOverlay.dylib` and `Orion.framework` into `Documents/Tweaks/StudifySpotify/` and the legacy-compatible `Documents/Tweaks/StudifyOverlay/` inside LiveContainer data container.
   - Verifies device-side Mach-O payload hashes match local build.
   - Clears old probe/debug logs.
   - Relaunches LiveContainer.
@@ -88,7 +93,7 @@ This file documents the end-to-end change flow we use for Studify overlay tweaks
 2. Verify locally:
    - `node Tests/StudifyDiagnostics/probe-source-test.js`
    - `Tests/StudifyDiagnostics/overlay-artifact-check.sh`
-3. Deploy to LiveContainer: `PROBE_MODE=0 COPY_SERVER_URL=0 Tools/StudifyLiveContainer/restart-test.sh --no-build`
+3. Deploy to LiveContainer: `PROBE_MODE=0 COPY_SERVER_URL=0 STATE_BRIDGE=0 Tools/StudifyLiveContainer/restart-test.sh --no-build`
 4. In phone app flow:
    - Open LiveContainer.
    - Open Spotify inside it.
@@ -139,3 +144,25 @@ The deploy script writes `state-bridge.txt` every run, so stale phone state from
 - `Activated UIControl download hook group`
 - `Spotify state bridge skipped; opt-in debug bridge disabled`
 - `Studify probe mode disabled`
+
+## 13) Current recovery checkpoint (2026-05-30)
+The recovered offline seeding behavior is now packaged in both deployment
+shapes:
+
+- LiveContainer tweak-folder deploy:
+  - `StudifyOverlay.dylib` and `Orion.framework` are copied into both
+    `Documents/Tweaks/StudifySpotify` and `Documents/Tweaks/StudifyOverlay`.
+  - Use `PROBE_MODE=0 COPY_SERVER_URL=0 STATE_BRIDGE=0 Tools/StudifyLiveContainer/restart-test.sh --no-build`.
+  - Runtime logs only appear when Spotify is opened from inside LiveContainer.
+- Standalone installed Spotify deploy:
+  - `./build-studify-full-ipa.sh` creates
+    `Outputs/IPAS/StudifyFull-9.1.28-25P4CVCPW5.ipa`.
+  - This is for the directly launched bundle
+    `com.spotify.client.25P4CVCPW5`.
+  - The helper verifies the output bundle id and that the embedded overlay
+    contains `Native playback bridge seeded offline user intent`.
+
+Do not confuse these paths during verification. Launching
+`com.spotify.client.25P4CVCPW5` directly does not consume the LiveContainer
+tweak folder, so empty LiveContainer logs after a direct Spotify launch do not
+prove the overlay failed to load.
