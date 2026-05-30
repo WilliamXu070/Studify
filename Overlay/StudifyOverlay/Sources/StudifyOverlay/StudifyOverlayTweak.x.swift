@@ -302,7 +302,7 @@ class StudifyOverlayUIControlHook: ClassHook<UIControl> {
 }
 
 class StudifyOverlayUIApplicationHook: ClassHook<UIApplication> {
-    typealias Group = StudifyOverlayProbeHookGroup
+    typealias Group = StudifyOverlayDownloadHookGroup
     static let targetName = "UIApplication"
 
     @objc(sendAction:to:from:forEvent:)
@@ -313,27 +313,30 @@ class StudifyOverlayUIApplicationHook: ClassHook<UIApplication> {
         let senderClass = studifyOverlayClassName(sender)
         let senderChain = studifyOverlayResponderChain(from: senderResponder).joined(separator: " > ")
 
-        studifyOverlayLog(
-            "Passive UIApplication action route probe action=\(actionName) target=\(targetClass) sender=\(senderClass) senderChain=\(senderChain)"
-        )
-        StudifyProbeStreamClient.shared.emit(
-            hook: "uiapplication",
-            phase: "sendAction",
-            message: actionName,
-            className: senderClass,
-            selector: actionName,
-            data: [
-                "targetClass": targetClass,
-                "senderClass": senderClass,
-                "senderChain": senderChain,
-                "eventType": event?.type.rawValue ?? -1,
-                "eventSubtype": event?.subtype.rawValue ?? -1
-            ],
-            throttleKey: "uiapplication-\(actionName)-\(senderClass)-\(targetClass)",
-            minInterval: 0.5,
-            requireActive: false
-        )
+        if studifyOverlayProbeModeEnabled {
+            studifyOverlayLog(
+                "Passive UIApplication action route probe action=\(actionName) target=\(targetClass) sender=\(senderClass) senderChain=\(senderChain)"
+            )
+            StudifyProbeStreamClient.shared.emit(
+                hook: "uiapplication",
+                phase: "sendAction",
+                message: actionName,
+                className: senderClass,
+                selector: actionName,
+                data: [
+                    "targetClass": targetClass,
+                    "senderClass": senderClass,
+                    "senderChain": senderChain,
+                    "eventType": event?.type.rawValue ?? -1,
+                    "eventSubtype": event?.subtype.rawValue ?? -1
+                ],
+                throttleKey: "uiapplication-\(actionName)-\(senderClass)-\(targetClass)",
+                minInterval: 0.5,
+                requireActive: false
+            )
+        }
 
+        StudifyFakePlaybackController.shared.observeOfflineActionSender(sender, actionName: actionName)
         return orig.sendAction(action, to: targetObject, from: sender, for: event)
     }
 }

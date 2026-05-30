@@ -180,6 +180,23 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         return true
     }
 
+    @discardableResult
+    func observeOfflineActionSender(_ sender: AnyObject?, actionName: String) -> Bool {
+        guard cachedOfflineModeActive else { return false }
+        guard let view = sender as? UIView else { return false }
+        guard let row = trackRow(startingAt: view) else { return false }
+
+        let rawTrack = track(from: row) ?? seededFallbackTrack(from: row)
+        if rawTrack == studifySeededGimmeLoveTrack {
+            studifyOverlayLog("Native playback bridge using seeded fallback for offline row UIApplication action without readable row track action=\(actionName)")
+        } else {
+            studifyOverlayLog("Native playback bridge captured offline row UIApplication action title=\(rawTrack.title) artist=\(rawTrack.artist) action=\(actionName)")
+        }
+
+        start(track: rawTrack, row: row, source: "passive row action")
+        return true
+    }
+
     private func refreshVisiblePlaylistState() {
         guard let window = activeWindow() else { return }
         let offlineModeActive = isSpotifyOfflineModeActive(in: window)
@@ -525,7 +542,7 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
     }
 
     private func simulatedTrack(for rawTrack: StudifyFakeTrack, source: String) -> StudifyFakeTrack {
-        if source == "passive row tap" || source == "passive row control" {
+        if source == "passive row tap" || source == "passive row control" || source == "passive row action" {
             return studifySeededGimmeLoveTrack
         }
         return canonicalTrack(rawTrack)

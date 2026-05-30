@@ -72,7 +72,9 @@ assert(
     fakePlayback.includes("Native playback bridge accepting offline row touch for seeded fallback without readable row track") &&
     fakePlayback.includes("observeOfflineRowControlAction") &&
     fakePlayback.includes("Native playback bridge using seeded fallback for offline row control action without readable row track") &&
-    fakePlayback.includes('source == "passive row tap" || source == "passive row control"') &&
+    fakePlayback.includes("observeOfflineActionSender") &&
+    fakePlayback.includes("Native playback bridge using seeded fallback for offline row UIApplication action without readable row track") &&
+    fakePlayback.includes('source == "passive row tap" || source == "passive row control" || source == "passive row action"') &&
     fakePlayback.includes("seedOfflinePlaybackIntentIfNeeded") &&
     fakePlayback.includes("Native playback bridge seeded offline user intent") &&
     fakePlayback.includes("scheduleFakeSpotifyTrackReassertions") &&
@@ -91,6 +93,15 @@ assert(
     overlayTweak.indexOf("observeOfflineRowControlAction(target, actionName: actionName)") <
       overlayTweak.indexOf("observePlaybackControl(target, actionName: actionName)"),
   "UIControl hook must route offline row actions into the fake playback controller before generic playback controls"
+);
+
+assert(
+  overlayTweak.includes("class StudifyOverlayUIApplicationHook") &&
+    overlayTweak.includes("typealias Group = StudifyOverlayDownloadHookGroup") &&
+    overlayTweak.includes("observeOfflineActionSender(sender, actionName: actionName)") &&
+    overlayTweak.includes("if studifyOverlayProbeModeEnabled") &&
+    overlayTweak.includes("Passive UIApplication action route probe"),
+  "UIApplication action hook must be active in normal mode while keeping verbose route logging probe-only"
 );
 
 assert(
