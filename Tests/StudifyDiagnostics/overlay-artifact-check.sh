@@ -31,6 +31,7 @@ grep -Fq "Native mini player visual applied offline-only" <<< "$STRINGS" || fail
 grep -Fq "Passive playback control probe" <<< "$STRINGS" || fail "missing passive playback-control probe marker"
 grep -Fq "Passive Spotify playback state probe" <<< "$STRINGS" || fail "missing passive Spotify state probe marker"
 grep -Fq "Studify probe mode disabled" <<< "$STRINGS" || fail "missing lightweight/probe-disabled marker"
+grep -Fq "Spotify state bridge skipped; opt-in debug bridge disabled" <<< "$STRINGS" || fail "missing state-bridge opt-in safety marker"
 grep -Fq "Passive press path probe" <<< "$STRINGS" || fail "missing press path probe marker"
 grep -Fq "Deep Spotify row probe" <<< "$STRINGS" || fail "missing deep Spotify row probe marker"
 grep -Fq "Deep Spotify row diff" <<< "$STRINGS" || fail "missing deep Spotify row diff marker"

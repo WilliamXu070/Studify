@@ -28,8 +28,9 @@ const restartTest = read("Tools/StudifyLiveContainer/restart-test.sh");
 
 assert(
   serverConfig.includes("StudifyLibrary/probe-mode.txt") &&
+    serverConfig.includes("StudifyLibrary/state-bridge.txt") &&
     overlayTweak.includes("studifyOverlayProbeModeIsEnabled()"),
-  "probe mode must be configurable from Documents/StudifyLibrary/probe-mode.txt"
+  "probe mode and risky state bridge must be configurable from Documents/StudifyLibrary"
 );
 
 assert(
@@ -84,8 +85,10 @@ assert(
 );
 
 assert(
-  restartTest.includes("StudifyLibrary/probe-mode.txt") &&
+    restartTest.includes("StudifyLibrary/probe-mode.txt") &&
     restartTest.includes("StudifyLibrary/probe-upload.txt") &&
+    restartTest.includes("StudifyLibrary/state-bridge.txt") &&
+    restartTest.includes("state bridge disabled on phone; cleared stale startup-crash path") &&
     restartTest.includes("server URL copy skipped; probe mode writes local phone logs only") &&
     restartTest.includes("probe mode disabled on phone; cleared stale probe-mode.txt state") &&
     restartTest.includes("pymobiledevice3") &&

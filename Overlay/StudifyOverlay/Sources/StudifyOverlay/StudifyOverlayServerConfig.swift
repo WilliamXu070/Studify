@@ -15,6 +15,11 @@ private let studifyProbeUploadConfigPaths = [
     "studify-probe-upload.txt"
 ]
 
+private let studifyStateBridgeConfigPaths = [
+    "StudifyLibrary/state-bridge.txt",
+    "studify-state-bridge.txt"
+]
+
 func studifyOverlayResolvedServerURLString() -> String {
     if let override = studifyOverlayServerURLOverride() {
         return override
@@ -65,6 +70,14 @@ func studifyOverlayProbeUploadIsEnabled() -> Bool {
     ].contains(normalized)
 }
 
+func studifySpotifyStateBridgeIsEnabled() -> Bool {
+    guard let rawValue = studifyStateBridgeOverride() else {
+        return false
+    }
+
+    return studifyOverlayBooleanConfigIsEnabled(rawValue, extraEnabledValues: ["state-bridge", "bridge"])
+}
+
 private func studifyOverlayServerURLOverride() -> String? {
     let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
 
@@ -84,6 +97,37 @@ private func studifyOverlayServerURLOverride() -> String? {
     }
 
     return nil
+}
+
+private func studifyStateBridgeOverride() -> String? {
+    let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+
+    for relativePath in studifyStateBridgeConfigPaths {
+        let url = documentsURL.appendingPathComponent(relativePath, isDirectory: false)
+        guard let rawValue = try? String(contentsOf: url, encoding: .utf8) else {
+            continue
+        }
+
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            continue
+        }
+
+        return trimmed
+    }
+
+    return nil
+}
+
+private func studifyOverlayBooleanConfigIsEnabled(_ rawValue: String, extraEnabledValues: [String] = []) -> Bool {
+    let normalized = rawValue.lowercased()
+    return ([
+        "1",
+        "true",
+        "yes",
+        "on",
+        "enabled"
+    ] + extraEnabledValues).contains(normalized)
 }
 
 private func studifyOverlayProbeUploadOverride() -> String? {

@@ -22,6 +22,8 @@ COPY_SERVER_URL="${COPY_SERVER_URL:-0}"
 PROBE_MODE="${PROBE_MODE:-1}"
 PROBE_MODE_FILE="${PROBE_MODE_FILE:-/private/tmp/studify-probe-mode.txt}"
 PROBE_UPLOAD_FILE="${PROBE_UPLOAD_FILE:-/private/tmp/studify-probe-upload.txt}"
+STATE_BRIDGE="${STATE_BRIDGE:-0}"
+STATE_BRIDGE_FILE="${STATE_BRIDGE_FILE:-/private/tmp/studify-state-bridge.txt}"
 DEVICETCL_TIMEOUT="${DEVICETCL_TIMEOUT:-45}"
 LOG_DEST="${LOG_DEST:-/private/tmp/studify_overlay_debug_latest.log}"
 EMPTY_LOG="${EMPTY_LOG:-/private/tmp/studify-overlay-empty-log.txt}"
@@ -46,6 +48,8 @@ Environment overrides:
   COPY_SERVER_URL
   PROBE_MODE
   PROBE_UPLOAD_FILE
+  STATE_BRIDGE
+  STATE_BRIDGE_FILE
   DEVICETCL_TIMEOUT
   LOG_DEST
   PROBE_DEST
@@ -374,6 +378,26 @@ else
     --destination "$SPOTIFY_VIRTUAL_CONTAINER/Documents/StudifyLibrary/probe-upload.txt" \
     --json-output /private/tmp/studify-copy-probe-upload-off-restart-test.json
   echo "probe mode disabled on phone; cleared stale probe-mode.txt state"
+fi
+
+if [ "$STATE_BRIDGE" != "0" ]; then
+  printf 'on\n' > "$STATE_BRIDGE_FILE"
+else
+  printf 'off\n' > "$STATE_BRIDGE_FILE"
+fi
+
+run xcrun devicectl device copy to \
+  --device "$DEVICE_ID" \
+  --domain-type appDataContainer \
+  --domain-identifier "$LIVECONTAINER_BUNDLE_ID" \
+  --source "$STATE_BRIDGE_FILE" \
+  --destination "$SPOTIFY_VIRTUAL_CONTAINER/Documents/StudifyLibrary/state-bridge.txt" \
+  --json-output /private/tmp/studify-copy-state-bridge-restart-test.json
+
+if [ "$STATE_BRIDGE" != "0" ]; then
+  echo "state bridge enabled on phone for targeted debug run"
+else
+  echo "state bridge disabled on phone; cleared stale startup-crash path"
 fi
 
 printf '' > "$EMPTY_LOG"

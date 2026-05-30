@@ -2,7 +2,9 @@ import Foundation
 import Orion
 import UIKit
 
-let studifySpotifyStateBridgeEnabled = true
+var studifySpotifyStateBridgeEnabled: Bool {
+    studifySpotifyStateBridgeIsEnabled()
+}
 
 @objc protocol StudifySpotifyStatefulPlayer: AnyObject {
     func currentTrack() -> AnyObject?

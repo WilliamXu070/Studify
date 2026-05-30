@@ -99,3 +99,43 @@ This file documents the end-to-end change flow we use for Studify overlay tweaks
 6. Read latest files:
    - `/tmp/studify_overlay_debug_latest.log`
    - `/tmp/studify_probe_events_latest.jsonl`
+
+## 11) Current breakage checkpoint (2026-05-30)
+Latest run still showed an immediate app crash on launch, before any Spotify row press can run.
+
+Repro command sequence:
+1. `PROBE_MODE=0 COPY_SERVER_URL=0 Tools/StudifyLiveContainer/restart-test.sh --no-build`
+2. Open LiveContainer → open Spotify quickly, then monitor iPhone behavior.
+3. `Tools/StudifyLiveContainer/pull-probe-report.sh`
+
+Observed evidence:
+- `studify_overlay_debug_latest.log` only had startup lines:
+  - `Studify overlay starting`
+  - `Studify probe upload enabled=false`
+  - `Activated UIControl download hook group`
+- No button/track events were produced because process exits before Spotify hooks activate.
+- Crash report `LiveContainer-2026-05-30-092952.ips` shows:
+  - `EXC_BREAKPOINT` / `SIGTRAP`
+  - faulting chain: `studifyActivateSpotifyStateBridge()` → `StudifyOverlay.init()` → `protocol witness for static Tweak.handleError(_:)`
+- This is a startup hook-initialization failure path, not an offline-row playback path.
+
+Next safest action before any new change:
+1. Do not redeploy blindly while app crashes on open.
+2. Pull latest crash and confirm with:
+   - `/private/tmp/studify-crash/LiveContainer-2026-05-30-092952.ips`
+   - `grep -n "studifyActivateSpotifyStateBridge\\|StudifyOverlay.init\\|EXC_BREAKPOINT" ...`
+3. Only when startup is stable, continue to row-press validation and offline seeding checks.
+
+## 12) Startup-crash stabilization
+The immediate crash path is guarded by an opt-in file now:
+- Default: `Documents/StudifyLibrary/state-bridge.txt = off`
+- Debug-only enable: run deploy with `STATE_BRIDGE=1` when specifically testing the state bridge.
+
+Required stable deploy command:
+`PROBE_MODE=0 COPY_SERVER_URL=0 STATE_BRIDGE=0 Tools/StudifyLiveContainer/restart-test.sh --no-build`
+
+The deploy script writes `state-bridge.txt` every run, so stale phone state from previous builds cannot silently re-enable the startup-crash hook path. Expected startup logs after this fix:
+- `Studify overlay starting`
+- `Activated UIControl download hook group`
+- `Spotify state bridge skipped; opt-in debug bridge disabled`
+- `Studify probe mode disabled`
