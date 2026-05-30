@@ -181,6 +181,7 @@ After deploy:
 
 ```sh
 Tools/StudifyLiveContainer/pull-probe-report.sh
+Tools/StudifyLiveContainer/verify-offline-seed-log.js
 ```
 
 For this non-probe simulation, the most useful file is:
@@ -196,6 +197,17 @@ probe mode disabled
 no server upload URL needed
 seeded URI is present in the dylib
 state bridge fakeTrack log contains Gimme Love / Vista Kicks
+```
+
+The verifier should pass only when logs prove all of these happened:
+
+```text
+overlay loaded
+offline row/control intent was captured
+Gimme Love / Vista Kicks was published
+spotify:track:3CUovld1O1HdAOrkgMlvNx was used
+playback state became playing
+fake state was reasserted or held after the tap
 ```
 
 ## Why This Shape Worked

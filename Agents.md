@@ -104,6 +104,8 @@ This file documents the end-to-end change flow we use for Studify overlay tweaks
 6. Read latest files:
    - `/tmp/studify_overlay_debug_latest.log`
    - `/tmp/studify_probe_events_latest.jsonl`
+7. Verify the recovered fake-playing path:
+   - `Tools/StudifyLiveContainer/verify-offline-seed-log.js`
 
 ## 11) Current breakage checkpoint (2026-05-30)
 Latest run still showed an immediate app crash on launch, before any Spotify row press can run.
@@ -165,6 +167,8 @@ shapes:
     `PROBE_MODE=0 STATE_BRIDGE=0 Tools/StudifyLiveContainer/standalone-spotify-test.sh`
   - After a manual row tap in the direct bundle, pull without clearing logs:
     `Tools/StudifyLiveContainer/standalone-spotify-test.sh --pull-only`
+  - Then verify direct-app evidence with:
+    `Tools/StudifyLiveContainer/verify-offline-seed-log.js /private/tmp/studify_standalone_overlay_debug_latest.log /private/tmp/studify_standalone_probe_events_latest.jsonl`
   - If the direct bundle is stale, install the fresh full IPA with:
     `Tools/StudifyLiveContainer/standalone-spotify-test.sh --install`
   - If install reports a process-scoped coordinated install, do not count the

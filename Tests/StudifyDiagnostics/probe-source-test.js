@@ -26,6 +26,7 @@ const bannerProbe = read("Overlay/StudifyOverlay/Sources/StudifyOverlay/StudifyB
 const promptProbe = read("Overlay/StudifyOverlay/Sources/StudifyOverlay/StudifyPromptPresentationProbe.x.swift");
 const restartTest = read("Tools/StudifyLiveContainer/restart-test.sh");
 const standaloneTest = read("Tools/StudifyLiveContainer/standalone-spotify-test.sh");
+const offlineSeedVerifier = read("Tools/StudifyLiveContainer/verify-offline-seed-log.js");
 const fullIpaBuild = read("build-studify-full-ipa.sh");
 
 assert(
@@ -137,6 +138,17 @@ assert(
     standaloneTest.includes("summarize-probe-events.js") &&
     standaloneTest.includes("seeded silent playback fallback will still report playing=true"),
   "standalone Spotify helper must configure and pull logs from the direct installed bundle"
+);
+
+assert(
+  offlineSeedVerifier.includes("Native playback bridge using seeded track for offline row press") &&
+    offlineSeedVerifier.includes("Native playback bridge seeded offline user intent") &&
+    offlineSeedVerifier.includes("Gimme Love") &&
+    offlineSeedVerifier.includes("Vista Kicks") &&
+    offlineSeedVerifier.includes("spotify:track:3CUovld1O1HdAOrkgMlvNx") &&
+    offlineSeedVerifier.includes("isPlaying=true") &&
+    offlineSeedVerifier.includes("Native playback bridge reasserted fake Spotify state"),
+  "offline seed verifier must require concrete fake-playing runtime evidence"
 );
 
 assert(

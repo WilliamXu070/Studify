@@ -253,6 +253,7 @@ Then inspect:
 
 ```sh
 tail -n 80 /private/tmp/studify_overlay_debug_latest.log
+Tools/StudifyLiveContainer/verify-offline-seed-log.js
 ```
 
 Good signs:
@@ -261,7 +262,10 @@ Good signs:
 Offline playable spoof groups skipped; runtime probe must confirm exact selectors before activation
 Studify native playback bridge installed
 Studify local audio ready at ...
-Native playback bridge started title=...
+Native playback bridge using seeded track for offline row press ...
+Spotify state bridge fakeTrack set title=Gimme Love artist=Vista Kicks uri=spotify:track:3CUovld1O1HdAOrkgMlvNx ...
+Native playback bridge started title=Gimme Love artist=Vista Kicks ... isPlaying=true
+Native playback bridge reasserted fake Spotify state ...
 Studify local audio playing ...
 ```
 
