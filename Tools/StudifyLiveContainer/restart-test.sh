@@ -76,7 +76,24 @@ done
 
 run() {
   echo "+ $*"
-  "$@"
+  if "$@"; then
+    return 0
+  fi
+
+  local status
+  status=$?
+  if [ "${1:-}" = "xcrun" ] && [ "${2:-}" = "devicectl" ]; then
+    for attempt in 2 3; do
+      echo "warning: devicectl command failed with status $status; retrying attempt $attempt/3" >&2
+      sleep 2
+      if "$@"; then
+        return 0
+      fi
+      status=$?
+    done
+  fi
+
+  return "$status"
 }
 
 hash_file() {
@@ -174,28 +191,48 @@ file_contains_string() {
 
 terminate_livecontainer_if_running() {
   local process_output
-  local live_pid
+  local pids
+  local pymobiledevice3_bin="/Users/williamxu/.local/bin/pymobiledevice3"
 
-  process_output="$(
+  if process_output="$(
     xcrun devicectl device info processes \
       --device "$DEVICE_ID" \
       --timeout "$DEVICETCL_TIMEOUT" \
       --json-output /private/tmp/studify-processes-restart-test.json
-  )"
-
-  live_pid="$(
-    printf '%s\n' "$process_output" \
-      | awk '/LiveContainer\.app\/LiveContainer/ { print $1 }' \
-      | tail -1
-  )"
-
-  if [ -n "$live_pid" ]; then
-    run xcrun devicectl device process terminate \
-      --device "$DEVICE_ID" \
-      --pid "$live_pid" \
-      --json-output /private/tmp/studify-terminate-livecontainer-restart-test.json
+  )"; then
+    pids="$(
+      printf '%s\n' "$process_output" \
+        | awk '/LiveContainer\.app\/LiveContainer|Spotify\.app\/Spotify/ { print $1 }' \
+        | sort -u
+    )"
   else
-    echo "LiveContainer is not currently running; copy step will still run"
+    echo "warning: CoreDevice process list failed; trying pymobiledevice3 process fallback"
+    printf '%s\n' "$process_output" >&2
+
+    if [ -x "$pymobiledevice3_bin" ]; then
+      pids="$(
+        {
+          "$pymobiledevice3_bin" processes pgrep LiveContainer 2>/dev/null || true
+          "$pymobiledevice3_bin" processes pgrep Spotify 2>/dev/null || true
+        } \
+          | awk '/LiveContainer|Spotify/ { for (i = 1; i <= NF; i++) if ($i ~ /^[0-9]+$/) print $i }' \
+          | sort -u
+      )"
+    else
+      pids=""
+    fi
+  fi
+
+  if [ -n "$pids" ]; then
+    while IFS= read -r pid; do
+      [ -n "$pid" ] || continue
+      run xcrun devicectl device process terminate \
+        --device "$DEVICE_ID" \
+        --pid "$pid" \
+        --json-output "/private/tmp/studify-terminate-${pid}-restart-test.json"
+    done <<< "$pids"
+  else
+    echo "LiveContainer/Spotify are not currently running; copy step will still run"
   fi
 }
 
@@ -320,7 +357,23 @@ if [ "$PROBE_MODE" != "0" ]; then
     --destination "$SPOTIFY_VIRTUAL_CONTAINER/Documents/StudifyLibrary/probe-upload.txt" \
     --json-output /private/tmp/studify-copy-probe-upload-restart-test.json
 else
-  echo "probe mode copy skipped because PROBE_MODE=0"
+  printf 'off\n' > "$PROBE_MODE_FILE"
+  printf 'off\n' > "$PROBE_UPLOAD_FILE"
+  run xcrun devicectl device copy to \
+    --device "$DEVICE_ID" \
+    --domain-type appDataContainer \
+    --domain-identifier "$LIVECONTAINER_BUNDLE_ID" \
+    --source "$PROBE_MODE_FILE" \
+    --destination "$SPOTIFY_VIRTUAL_CONTAINER/Documents/StudifyLibrary/probe-mode.txt" \
+    --json-output /private/tmp/studify-copy-probe-mode-off-restart-test.json
+  run xcrun devicectl device copy to \
+    --device "$DEVICE_ID" \
+    --domain-type appDataContainer \
+    --domain-identifier "$LIVECONTAINER_BUNDLE_ID" \
+    --source "$PROBE_UPLOAD_FILE" \
+    --destination "$SPOTIFY_VIRTUAL_CONTAINER/Documents/StudifyLibrary/probe-upload.txt" \
+    --json-output /private/tmp/studify-copy-probe-upload-off-restart-test.json
+  echo "probe mode disabled on phone; cleared stale probe-mode.txt state"
 fi
 
 printf '' > "$EMPTY_LOG"

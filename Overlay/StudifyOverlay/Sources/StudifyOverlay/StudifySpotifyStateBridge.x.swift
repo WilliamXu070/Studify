@@ -84,15 +84,17 @@ final class StudifySpotifyStateBridge {
         let cleanURI = uri.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanTitle.isEmpty else { return }
 
-        fakeTrackLock.lock()
-        fakeTrackState = StudifySpotifyFakeTrackState(
+        let nextState = StudifySpotifyFakeTrackState(
             title: cleanTitle,
             artist: cleanArtist.isEmpty ? "Studify" : cleanArtist,
             uri: cleanURI.isEmpty ? "studify:local:\(stableIdentifier(title: cleanTitle, artist: cleanArtist))" : cleanURI
         )
+
+        fakeTrackLock.lock()
+        fakeTrackState = nextState
         fakeTrackLock.unlock()
 
-        studifyOverlayLog("Spotify state bridge fakeTrack set title=\(cleanTitle) artist=\(cleanArtist) reason=\(reason)")
+        studifyOverlayLog("Spotify state bridge fakeTrack set title=\(nextState.title) artist=\(nextState.artist) uri=\(nextState.uri) reason=\(reason)")
         nudgeSpotifyNowPlayingUI(reason: reason)
     }
 
@@ -155,6 +157,10 @@ final class StudifySpotifyStateBridge {
     }
 
     private func bestSpotifyStateSummary() -> (title: String, artist: String, uri: String) {
+        if let fake = currentFakeTrackState() {
+            return (fake.title, fake.artist, fake.uri)
+        }
+
         let preferredSources = statefulPlayersBySource.keys.sorted { lhs, rhs in
             score(source: lhs) > score(source: rhs)
         }
@@ -175,11 +181,16 @@ final class StudifySpotifyStateBridge {
             .sorted { score(source: $0) > score(source: $1) }
             .prefix(12)
 
-        return interesting.map { source in
+        var summaries = interesting.map { source in
             let summary = spotifyStateSummary(source: source, player: statefulPlayersBySource[source])
             return "\(source){class=\(summary.playerClass),trackClass=\(summary.trackClass),title=\(summary.title),artist=\(summary.artist),uri=\(summary.uri)}"
         }
-        .joined(separator: " || ")
+
+        if let fake = currentFakeTrackState() {
+            summaries.insert("studify-fake{title=\(fake.title),artist=\(fake.artist),uri=\(fake.uri)}", at: 0)
+        }
+
+        return summaries.joined(separator: " || ")
     }
 
     private func spotifyStateSummary(source: String, player: StudifySpotifyStatefulPlayer?) -> (playerClass: String, trackClass: String, title: String, artist: String, uri: String) {

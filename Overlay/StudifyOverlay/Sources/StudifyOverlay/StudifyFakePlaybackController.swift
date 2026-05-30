@@ -6,6 +6,9 @@ private struct StudifyFakeTrack: Equatable, Hashable {
     let artist: String
 }
 
+private let studifySeededGimmeLoveURI = "spotify:track:3CUovld1O1HdAOrkgMlvNx"
+private let studifySeededGimmeLoveTrack = StudifyFakeTrack(title: "Gimme Love", artist: "Vista Kicks")
+
 final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate {
     static let shared = StudifyFakePlaybackController()
 
@@ -177,6 +180,7 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         }
 
         installTapRecognizerIfNeeded(on: window)
+        seedInitialOfflineTrackIfNeeded(reason: "offline-mode-active")
 
         var rows: [UIView] = []
         collectTrackRows(in: window, into: &rows, depth: 0)
@@ -189,9 +193,10 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
             if offlineModeActive {
                 totalMutations += enableNativeInteraction(in: row)
             }
-            guard let track = track(from: row) else {
+            guard let rawTrack = track(from: row) else {
                 continue
             }
+            let track = canonicalTrack(rawTrack)
             if !tracks.contains(track) {
                 interactiveRows += 1
                 tracks.append(track)
@@ -214,7 +219,7 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         }
 
         if !tracks.isEmpty {
-            visibleTracks = tracks
+            visibleTracks = seededVisibleTracks(from: tracks)
         }
         if let currentTrack {
             applyNativeMiniPlayerVisual(track: currentTrack)
@@ -339,12 +344,13 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         return trackRow(startingAt: hitView).flatMap { track(from: $0) } != nil
     }
 
-    private func start(track: StudifyFakeTrack, row: UIView? = nil, source: String) {
+    private func start(track rawTrack: StudifyFakeTrack, row: UIView? = nil, source: String) {
         if !cachedOfflineModeActive {
             studifyOverlayLog("Native playback bridge skipped outside Spotify offline mode")
             return
         }
 
+        let track = canonicalTrack(rawTrack)
         let now = Date()
         if let lastStart = lastPassiveRowStartAtByTrack[track], now.timeIntervalSince(lastStart) < 0.55 {
             studifyOverlayLog("Passive row tap probe ignored duplicate title=\(track.title) source=\(source)")
@@ -358,7 +364,7 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
             visibleTracks.insert(track, at: 0)
         }
         progress = 0
-        isPlaying = StudifyLocalAudioPlayer.shared.playTestMP3(restart: true)
+        isPlaying = startLocalAudioOrSeededSilence(for: track)
         if let row {
             setCurrentSpotifyVisualRow(row)
         }
@@ -404,6 +410,7 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
             data: [
                 "title": track.title,
                 "artist": track.artist,
+                "uri": spotifyURI(for: track),
                 "isPlaying": isPlaying
             ],
             throttleKey: "native-playback-start-\(track.title)",
@@ -412,15 +419,55 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
     }
 
     private func publishFakeSpotifyTrack(_ track: StudifyFakeTrack, reason: String) {
+        let uri = spotifyURI(for: track)
         StudifySpotifyStateBridge.shared.setFakeTrack(
             title: track.title,
             artist: track.artist,
-            uri: fakeSpotifyURI(for: track),
+            uri: uri,
             reason: reason
         )
+        studifyOverlayLog("Native playback bridge published fake Spotify state title=\(track.title) artist=\(track.artist) uri=\(uri) reason=\(reason)")
     }
 
-    private func fakeSpotifyURI(for track: StudifyFakeTrack) -> String {
+    private func seedInitialOfflineTrackIfNeeded(reason: String) {
+        guard currentTrack == nil else { return }
+
+        currentTrack = studifySeededGimmeLoveTrack
+        progress = 0
+        isPlaying = false
+        visibleTracks = seededVisibleTracks(from: visibleTracks)
+        publishFakeSpotifyTrack(studifySeededGimmeLoveTrack, reason: "seed-\(reason)")
+        StudifySpotifyStateBridge.shared.recordFakeSelection(
+            title: studifySeededGimmeLoveTrack.title,
+            artist: studifySeededGimmeLoveTrack.artist,
+            reason: "seed-\(reason)"
+        )
+        studifyOverlayLog("Native playback bridge seeded offline track title=\(studifySeededGimmeLoveTrack.title) artist=\(studifySeededGimmeLoveTrack.artist) uri=\(studifySeededGimmeLoveURI) reason=\(reason)")
+    }
+
+    private func seededVisibleTracks(from tracks: [StudifyFakeTrack]) -> [StudifyFakeTrack] {
+        let canonicalTracks = tracks.map(canonicalTrack)
+        guard !canonicalTracks.contains(studifySeededGimmeLoveTrack) else { return canonicalTracks }
+        return [studifySeededGimmeLoveTrack] + canonicalTracks
+    }
+
+    private func canonicalTrack(_ track: StudifyFakeTrack) -> StudifyFakeTrack {
+        seededSpotifyURI(for: track) == nil ? track : studifySeededGimmeLoveTrack
+    }
+
+    private func spotifyURI(for track: StudifyFakeTrack) -> String {
+        seededSpotifyURI(for: track) ?? localSpotifyURI(for: track)
+    }
+
+    private func seededSpotifyURI(for track: StudifyFakeTrack) -> String? {
+        let haystack = normalizedSearchText("\(track.title) \(track.artist)")
+        if haystack.contains("gimme love"), haystack.contains("vista kicks") {
+            return studifySeededGimmeLoveURI
+        }
+        return nil
+    }
+
+    private func localSpotifyURI(for track: StudifyFakeTrack) -> String {
         let raw = "\(track.artist)-\(track.title)".lowercased()
         let allowed = CharacterSet.alphanumerics
         let identifier = raw.unicodeScalars
@@ -429,6 +476,42 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
             .split(separator: "-")
             .joined(separator: "-")
         return "studify:local:\(identifier.isEmpty ? "test-mp3" : identifier)"
+    }
+
+    private func normalizedSearchText(_ value: String) -> String {
+        value
+            .lowercased()
+            .unicodeScalars
+            .map { CharacterSet.alphanumerics.contains($0) ? String($0) : " " }
+            .joined()
+            .split(separator: " ")
+            .joined(separator: " ")
+    }
+
+    private func startLocalAudioOrSeededSilence(for track: StudifyFakeTrack) -> Bool {
+        if StudifyLocalAudioPlayer.shared.hasLocalAudio {
+            return StudifyLocalAudioPlayer.shared.playTestMP3(restart: true)
+        }
+
+        if seededSpotifyURI(for: track) != nil {
+            studifyOverlayLog("Native playback bridge simulating seeded offline playback without local audio title=\(track.title) uri=\(spotifyURI(for: track))")
+            return true
+        }
+
+        return StudifyLocalAudioPlayer.shared.playTestMP3(restart: true)
+    }
+
+    private func resumeLocalAudioOrSeededSilence(for track: StudifyFakeTrack) -> Bool {
+        if StudifyLocalAudioPlayer.shared.hasLocalAudio {
+            return StudifyLocalAudioPlayer.shared.resumeOrRestart()
+        }
+
+        if seededSpotifyURI(for: track) != nil {
+            studifyOverlayLog("Native playback bridge resuming seeded offline simulation without local audio title=\(track.title) uri=\(spotifyURI(for: track))")
+            return true
+        }
+
+        return StudifyLocalAudioPlayer.shared.resumeOrRestart()
     }
 
     private func setCurrentSpotifyVisualRow(_ row: UIView) {
@@ -783,6 +866,8 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         if isPlaying {
             StudifyLocalAudioPlayer.shared.pause()
             isPlaying = false
+        } else if let currentTrack {
+            isPlaying = resumeLocalAudioOrSeededSilence(for: currentTrack)
         } else {
             isPlaying = StudifyLocalAudioPlayer.shared.resumeOrRestart()
         }
@@ -797,7 +882,12 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
             hook: "native-playback",
             phase: "toggle",
             message: source,
-            data: ["isPlaying": isPlaying],
+            data: [
+                "title": currentTrack?.title ?? "",
+                "artist": currentTrack?.artist ?? "",
+                "uri": currentTrack.map { spotifyURI(for: $0) } ?? "",
+                "isPlaying": isPlaying
+            ],
             throttleKey: "native-playback-toggle",
             minInterval: 0.5
         )
@@ -813,7 +903,7 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         }
         currentTrack = visibleTracks[nextIndex]
         progress = 0
-        isPlaying = StudifyLocalAudioPlayer.shared.playTestMP3(restart: true)
+        isPlaying = currentTrack.map { startLocalAudioOrSeededSilence(for: $0) } ?? false
         if let currentTrack {
             publishFakeSpotifyTrack(currentTrack, reason: source)
             if let row = visibleRow(for: currentTrack) {
@@ -832,7 +922,8 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
             message: source,
             data: [
                 "title": currentTrack?.title ?? "",
-                "artist": currentTrack?.artist ?? ""
+                "artist": currentTrack?.artist ?? "",
+                "uri": currentTrack.map { spotifyURI(for: $0) } ?? ""
             ],
             throttleKey: "native-playback-next",
             minInterval: 0.5
@@ -849,7 +940,7 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         }
         currentTrack = visibleTracks[previousIndex]
         progress = 0
-        isPlaying = StudifyLocalAudioPlayer.shared.playTestMP3(restart: true)
+        isPlaying = currentTrack.map { startLocalAudioOrSeededSilence(for: $0) } ?? false
         if let currentTrack {
             publishFakeSpotifyTrack(currentTrack, reason: source)
             if let row = visibleRow(for: currentTrack) {
@@ -868,7 +959,8 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
             message: source,
             data: [
                 "title": currentTrack?.title ?? "",
-                "artist": currentTrack?.artist ?? ""
+                "artist": currentTrack?.artist ?? "",
+                "uri": currentTrack.map { spotifyURI(for: $0) } ?? ""
             ],
             throttleKey: "native-playback-previous",
             minInterval: 0.5
@@ -906,7 +998,7 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         var rows: [UIView] = []
         collectTrackRows(in: window, into: &rows, depth: 0)
         return rows.first { row in
-            self.track(from: row) == track
+            self.track(from: row).map(self.canonicalTrack) == track
         }
     }
 

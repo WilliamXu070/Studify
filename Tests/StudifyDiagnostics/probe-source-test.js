@@ -60,6 +60,16 @@ assert(
 );
 
 assert(
+  fakePlayback.includes('studifySeededGimmeLoveURI = "spotify:track:3CUovld1O1HdAOrkgMlvNx"') &&
+    fakePlayback.includes('StudifyFakeTrack(title: "Gimme Love", artist: "Vista Kicks")') &&
+    fakePlayback.includes('seedInitialOfflineTrackIfNeeded(reason: "offline-mode-active")') &&
+    fakePlayback.includes("startLocalAudioOrSeededSilence(for: track)") &&
+    fakePlayback.includes("Native playback bridge simulating seeded offline playback without local audio") &&
+    read("Overlay/StudifyOverlay/Sources/StudifyOverlay/StudifySpotifyStateBridge.x.swift").includes("studify-fake{title="),
+  "offline simulation must seed Gimme Love with the recovered Spotify URI and publish it through the state bridge"
+);
+
+assert(
   !overlayTweak.includes("StudifyPromptPresentationProbe.shared.install()") &&
     promptProbe.includes("typealias Group = StudifyPromptPresentationProbeHookGroup") &&
     overlayTweak.includes("Download signal skipped while probe mode is local-only") &&
@@ -72,6 +82,10 @@ assert(
   restartTest.includes("StudifyLibrary/probe-mode.txt") &&
     restartTest.includes("StudifyLibrary/probe-upload.txt") &&
     restartTest.includes("server URL copy skipped; probe mode writes local phone logs only") &&
+    restartTest.includes("probe mode disabled on phone; cleared stale probe-mode.txt state") &&
+    restartTest.includes("pymobiledevice3") &&
+    restartTest.includes("processes pgrep Spotify") &&
+    restartTest.includes("retrying attempt $attempt/3") &&
     restartTest.includes("/Users/williamxu/Downloads/EeveeSpotify-6.6.2-9.1.28.ipa") &&
     restartTest.includes('run ./build-studify-overlay.sh "$BASE_IPA"'),
   "restart-test must enable local phone probe mode and build overlay against the clean base Eevee IPA"

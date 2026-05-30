@@ -38,6 +38,10 @@ To skip this automatic probe-mode copy for a non-probe run:
 PROBE_MODE=0 Tools/StudifyLiveContainer/restart-test.sh
 ```
 
+With `PROBE_MODE=0`, the restart script writes `probe-mode.txt` with `off`
+instead of merely skipping the copy, so stale probe-mode files from earlier
+runs cannot keep the observe-only row-tap path active.
+
 ## Test Scenarios
 
 Deploy/restart with a clean probe log:

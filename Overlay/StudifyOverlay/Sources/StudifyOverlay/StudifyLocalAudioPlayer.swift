@@ -26,6 +26,10 @@ final class StudifyLocalAudioPlayer: NSObject, AVAudioPlayerDelegate {
         player?.isPlaying ?? false
     }
 
+    var hasLocalAudio: Bool {
+        resolvedAudioFileURL() != nil
+    }
+
     var progress: Float {
         guard let player, player.duration > 0 else { return 0 }
         return Float(max(0, min(1, player.currentTime / player.duration)))
