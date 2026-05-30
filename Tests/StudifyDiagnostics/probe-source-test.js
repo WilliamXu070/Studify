@@ -62,11 +62,12 @@ assert(
 assert(
   fakePlayback.includes('studifySeededGimmeLoveURI = "spotify:track:3CUovld1O1HdAOrkgMlvNx"') &&
     fakePlayback.includes('StudifyFakeTrack(title: "Gimme Love", artist: "Vista Kicks")') &&
-    fakePlayback.includes('seedInitialOfflineTrackIfNeeded(reason: "offline-mode-active")') &&
+    fakePlayback.includes('source == "passive row tap"') &&
+    fakePlayback.includes("Native playback bridge using seeded track for offline row press") &&
     fakePlayback.includes("startLocalAudioOrSeededSilence(for: track)") &&
     fakePlayback.includes("Native playback bridge simulating seeded offline playback without local audio") &&
     read("Overlay/StudifyOverlay/Sources/StudifyOverlay/StudifySpotifyStateBridge.x.swift").includes("studify-fake{title="),
-  "offline simulation must seed Gimme Love with the recovered Spotify URI and publish it through the state bridge"
+  "offline simulation must seed Gimme Love only from an offline row press and publish it through the state bridge"
 );
 
 assert(

@@ -22,7 +22,7 @@ grep -Fq "STUDIFY OVERLAY POST STARTED" <<< "$STRINGS" || fail "missing POST mar
 grep -Fq "sendAction:to:forEvent:" <<< "$STRINGS" || fail "missing UIControl selector"
 grep -Fq "Studify native playback bridge installed" <<< "$STRINGS" || fail "missing native bridge install marker"
 grep -Fq "Native playback bridge started" <<< "$STRINGS" || fail "missing native bridge playback marker"
-grep -Fq "Native playback bridge seeded offline track" <<< "$STRINGS" || fail "missing seeded offline track marker"
+grep -Fq "Native playback bridge using seeded track for offline row press" <<< "$STRINGS" || fail "missing row-press seed marker"
 grep -Fq "spotify:track:3CUovld1O1HdAOrkgMlvNx" <<< "$STRINGS" || fail "missing seeded Gimme Love URI"
 grep -Fq "Fast Spotify row visual applied offline-only" <<< "$STRINGS" || fail "missing fast Spotify row visual marker"
 grep -Fq "Studify.FastPlayIndicatorBar" <<< "$STRINGS" || fail "missing fast play indicator animation marker"
