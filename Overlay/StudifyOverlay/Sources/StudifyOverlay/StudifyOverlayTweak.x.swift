@@ -92,7 +92,6 @@ struct StudifyOverlay: Tweak {
                 StudifyOverlayProbeHookGroup().activate()
                 studifyOverlayLog("Activated Studify probe hook group")
             }
-            StudifyPromptPresentationProbe.shared.install()
             StudifyOfflinePathwayProbe.shared.runClassProbeOnce()
             StudifyProbeStreamClient.shared.emit(
                 hook: "overlay",

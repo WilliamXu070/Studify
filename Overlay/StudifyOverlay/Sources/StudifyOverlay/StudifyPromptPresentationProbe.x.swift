@@ -138,8 +138,10 @@ final class StudifyPromptPresentationProbe {
     }
 }
 
+struct StudifyPromptPresentationProbeHookGroup: HookGroup { }
+
 class StudifyPromptUIViewControllerProbeHook: ClassHook<UIViewController> {
-    typealias Group = StudifyOverlayProbeHookGroup
+    typealias Group = StudifyPromptPresentationProbeHookGroup
     static let targetName = "UIViewController"
 
     func viewDidAppear(_ animated: Bool) {

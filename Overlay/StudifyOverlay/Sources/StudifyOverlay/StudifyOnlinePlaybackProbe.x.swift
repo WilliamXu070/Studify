@@ -3,7 +3,7 @@ import Orion
 import UIKit
 
 var studifyOnlinePlaybackProbeEnabled: Bool {
-    studifyOverlayProbeModeEnabled
+    UserDefaults.standard.bool(forKey: "StudifyEnableOnlinePlaybackProbe")
 }
 
 private struct StudifyOnlineProbeTrack: Equatable {

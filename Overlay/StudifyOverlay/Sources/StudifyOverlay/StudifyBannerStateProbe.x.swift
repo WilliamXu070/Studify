@@ -4,7 +4,7 @@ import Orion
 import UIKit
 
 var studifyBannerStateProbeEnabled: Bool {
-    studifyOverlayProbeModeEnabled || UserDefaults.standard.bool(forKey: "StudifyEnableBannerStateProbe")
+    UserDefaults.standard.bool(forKey: "StudifyEnableBannerStateProbe")
 }
 
 struct StudifyBannerStateProbeHookGroup: HookGroup { }

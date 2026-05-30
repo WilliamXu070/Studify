@@ -54,17 +54,18 @@ assert(
 assert(
   fakePlayback.includes("cachedOfflineModeActive || studifyOverlayProbeModeEnabled") &&
     fakePlayback.includes('"online row tap"') &&
-    onlineProbe.includes("studifyOverlayProbeModeEnabled") &&
-    bannerProbe.includes("studifyOverlayProbeModeEnabled"),
-  "probe mode must capture online row taps and enable online/banner probes"
+    onlineProbe.includes("StudifyEnableOnlinePlaybackProbe") &&
+    bannerProbe.includes("StudifyEnableBannerStateProbe"),
+  "probe mode must capture online row taps without auto-enabling risky online/banner probes"
 );
 
 assert(
-  overlayTweak.includes("StudifyPromptPresentationProbe.shared.install()") &&
+  !overlayTweak.includes("StudifyPromptPresentationProbe.shared.install()") &&
+    promptProbe.includes("typealias Group = StudifyPromptPresentationProbeHookGroup") &&
     overlayTweak.includes("Download signal skipped while probe mode is local-only") &&
     promptProbe.includes('hook: isGate ? "premium-gate" : "prompt"') &&
     promptProbe.includes("premium/song-selection prompt"),
-  "prompt/premium gate probe must be installed and emit structured gate evidence"
+  "prompt/premium gate probe code must not be activated by the core probe group"
 );
 
 assert(
