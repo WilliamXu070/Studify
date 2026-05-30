@@ -69,3 +69,33 @@ This file documents the end-to-end change flow we use for Studify overlay tweaks
 - If app flow doesn’t report tap/native events after deploy, it usually means the interaction path on iPhone differs from probe assumptions.
 - Run once inside Spotify (LiveContainer): open playlist, tap a row, then immediately pull probe report.
 - Keep `Docs/GimmeLoveOfflineSimulation.md` updated with timestamped sample outputs for manual recovery.
+
+## 9) Current change summary (this session)
+- Row-press offline simulation now reasserts seeded state after tap to match Spotify repaint timing:
+  - Added grace-window logic so simulated row-seed state stays active briefly after press.
+  - Added delayed reassertions that re-emit fake Spotify state + mini-player visual updates.
+- Spotify metadata override coverage was expanded:
+  - Added `artistTitle` and `URI` overrides to the existing `trackTitle`/`artistName`/`metadata` coverage.
+- Build/deploy reliability hardening:
+  - Updated signing flow to stage/copy `Orion.framework` safely when building from the Eevee IPA.
+- Git history now includes:
+  - `2ff1391` (`Fix offline row tap seeding override and reassert`)
+  - `f307480` (`Add Agents.md runbook for Studify tweak change→build→verify→deploy loop`)
+- Commit and pushed both the code fix and the runbook updates.
+
+## 10) Exact sequence to run now (no server, local logs on iPhone)
+1. Rebuild: `./build-studify-overlay.sh /Users/williamxu/Downloads/EeveeSpotify-6.6.2-9.1.28.ipa`
+2. Verify locally:
+   - `node Tests/StudifyDiagnostics/probe-source-test.js`
+   - `Tests/StudifyDiagnostics/overlay-artifact-check.sh`
+3. Deploy to LiveContainer: `PROBE_MODE=0 COPY_SERVER_URL=0 Tools/StudifyLiveContainer/restart-test.sh --no-build`
+4. In phone app flow:
+   - Open LiveContainer.
+   - Open Spotify inside it.
+   - Open the target playlist.
+   - Tap the song row once.
+5. Pull logs immediately:
+   - `Tools/StudifyLiveContainer/pull-probe-report.sh`
+6. Read latest files:
+   - `/tmp/studify_overlay_debug_latest.log`
+   - `/tmp/studify_probe_events_latest.jsonl`
