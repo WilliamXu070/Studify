@@ -108,8 +108,43 @@ async function main() {
       throw new Error("Created job was not present in /v1/jobs");
     }
 
+    const probePost = await request("POST", "/v1/probe/events", {
+      deviceId: "diagnostic-node",
+      sessionId: "diagnostic-probe-session",
+      sequence: 7,
+      hook: "row-identity",
+      phase: "tap",
+      message: "diagnostic row tap",
+      className: "DiagnosticRow",
+      selector: "layoutSubviews",
+      spotifyVersion: "diagnostic",
+      data: {
+        uriCandidates: ["spotify:track:diagnostic"],
+        slots: ["0:DiagnosticRow{trackURI=spotify:track:diagnostic}"],
+      },
+    });
+
+    if (probePost.status !== 202 || !probePost.json?.ok || !probePost.json?.eventId) {
+      throw new Error(`Expected 202 probe event creation, got ${probePost.status}: ${probePost.data}`);
+    }
+
+    const probes = await request("GET", "/v1/probe/events");
+    if (probes.status !== 200 || !Array.isArray(probes.json?.events)) {
+      throw new Error(`Expected probe events array, got ${probes.status}: ${probes.data}`);
+    }
+
+    const probe = probes.json.events.find((event) => event.id === probePost.json.eventId);
+    if (!probe) {
+      throw new Error("Created probe event was not present in /v1/probe/events");
+    }
+
+    if (probe.sequence !== 7 || probe.data?.uriCandidates?.[0] !== "spotify:track:diagnostic") {
+      throw new Error(`Probe event lost structured trace data: ${JSON.stringify(probe)}`);
+    }
+
     report.push("server-smoke-test: ok");
     report.push(`jobId=${post.json.jobId}`);
+    report.push(`probeEventId=${probePost.json.eventId}`);
   } finally {
     const childExit = child.exitCode === null
       ? new Promise((resolve) => child.once("exit", resolve))

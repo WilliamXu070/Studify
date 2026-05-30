@@ -6,8 +6,10 @@ final class StudifyProbeStreamClient {
 
     private let queue = DispatchQueue(label: "studify.probe.stream")
     private let sessionDuration: TimeInterval = 90
+    private let localProbeRelativePath = "tmp/studify_probe_events.jsonl"
     private var activeUntil = Date(timeIntervalSince1970: 0)
     private var sessionId = UUID().uuidString
+    private var sequence = 0
     private var lastSentByKey: [String: Date] = [:]
 
     private init() { }
@@ -21,6 +23,7 @@ final class StudifyProbeStreamClient {
         guard studifyOverlayProbeModeEnabled else { return }
         queue.async {
             self.sessionId = UUID().uuidString
+            self.sequence = 0
             self.activeUntil = Date().addingTimeInterval(self.sessionDuration)
             self.lastSentByKey.removeAll()
 
@@ -108,6 +111,9 @@ final class StudifyProbeStreamClient {
             lastSentByKey[throttleKey] = now
         }
 
+        sequence += 1
+        let eventSequence = sequence
+
         let serverURLString = studifyOverlayResolvedServerURLString()
         guard let baseURL = URL(string: serverURLString) else {
             studifyOverlayLog("Probe stream invalid server URL: \(serverURLString)")
@@ -115,10 +121,11 @@ final class StudifyProbeStreamClient {
         }
 
         let endpoint = baseURL.appendingPathComponent("v1/probe/events")
-        var payload = data
+        var payload: [String: Any] = [:]
         payload["deviceId"] = UIDevice.current.identifierForVendor?.uuidString ?? "unknown-device"
         payload["deviceName"] = UIDevice.current.name
         payload["sessionId"] = sessionId
+        payload["sequence"] = eventSequence
         payload["hook"] = hook
         payload["phase"] = phase
         payload["message"] = message
@@ -126,6 +133,9 @@ final class StudifyProbeStreamClient {
         payload["selector"] = selector
         payload["spotifyVersion"] = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
         payload["sentAt"] = ISO8601DateFormatter().string(from: Date())
+        payload["data"] = data
+
+        appendLocalProbeEvent(payload)
 
         guard JSONSerialization.isValidJSONObject(payload),
               let body = try? JSONSerialization.data(withJSONObject: payload, options: []) else {
@@ -152,5 +162,40 @@ final class StudifyProbeStreamClient {
                 studifyOverlayLog("Probe stream HTTP \(httpResponse.statusCode) hook=\(hook)")
             }
         }.resume()
+    }
+
+    private func appendLocalProbeEvent(_ payload: [String: Any]) {
+        guard JSONSerialization.isValidJSONObject(payload),
+              let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]),
+              let line = String(data: data, encoding: .utf8)
+        else {
+            studifyOverlayLog("Probe stream could not encode local event")
+            return
+        }
+
+        let url = localProbeLogURL()
+        do {
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true,
+                attributes: nil
+            )
+            if !FileManager.default.fileExists(atPath: url.path) {
+                try Data().write(to: url)
+            }
+            let handle = try FileHandle(forWritingTo: url)
+            defer { try? handle.close() }
+            try handle.seekToEnd()
+            if let lineData = "\(line)\n".data(using: .utf8) {
+                try handle.write(contentsOf: lineData)
+            }
+        } catch {
+            studifyOverlayLog("Probe stream local write failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func localProbeLogURL() -> URL {
+        URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+            .appendingPathComponent(localProbeRelativePath, isDirectory: false)
     }
 }

@@ -30,6 +30,8 @@ fi
 echo ""
 echo "== Source regression checks =="
 node Tests/StudifyDiagnostics/source-regression-test.js
+node Tests/StudifyDiagnostics/probe-source-test.js
+node Tests/StudifyDiagnostics/probe-report-test.js
 
 echo ""
 echo "== Server smoke test =="

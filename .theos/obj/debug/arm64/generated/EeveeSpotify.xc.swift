@@ -1230,7 +1230,7 @@ extension StreamQualitySettingsSectionHook {
         typealias HookType = StreamQualitySettingsSectionHook
 
         final class OrigType: StreamQualitySettingsSectionHook, _GlueClassHookTrampoline {
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 194)
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 199)
             @objc override func shouldResetSelection() -> Bool {
             #sourceLocation()
                 _Glue.orion_orig1(target, _Glue.orion_sel1)
@@ -1238,10 +1238,10 @@ extension StreamQualitySettingsSectionHook {
         }
 
         final class SuprType: StreamQualitySettingsSectionHook, _GlueClassHookTrampoline {
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 194)
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 199)
             @objc override func shouldResetSelection() -> Bool {
             #sourceLocation()
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 194)
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 199)
                 callSuper((@convention(c) (UnsafeRawPointer, Selector)  -> Bool).self) {
             #sourceLocation()
                     $0($1, _Glue.orion_sel1)
@@ -1251,10 +1251,10 @@ extension StreamQualitySettingsSectionHook {
 
         static let storage = initializeStorage()
 
-        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 194)
+        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 199)
         private static let orion_sel1 = #selector(StreamQualitySettingsSectionHook.shouldResetSelection as (StreamQualitySettingsSectionHook) -> ()  -> Bool)
         #sourceLocation()
-        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 194)
+        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 199)
         private static var orion_orig1: @convention(c) (Target, Selector)  -> Bool = { target, _cmd in
         #sourceLocation()
             (StreamQualitySettingsSectionHook(target: target).shouldResetSelection())
@@ -1271,7 +1271,7 @@ extension ListRowInteractionListenerViewHook {
         typealias HookType = ListRowInteractionListenerViewHook
 
         final class OrigType: ListRowInteractionListenerViewHook, _GlueClassHookTrampoline {
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 204)
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 209)
             @objc override func performAction()  {
             #sourceLocation()
                 _Glue.orion_orig1(target, _Glue.orion_sel1)
@@ -1279,10 +1279,10 @@ extension ListRowInteractionListenerViewHook {
         }
 
         final class SuprType: ListRowInteractionListenerViewHook, _GlueClassHookTrampoline {
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 204)
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 209)
             @objc override func performAction()  {
             #sourceLocation()
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 204)
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 209)
                 callSuper((@convention(c) (UnsafeRawPointer, Selector)  -> Void).self) {
             #sourceLocation()
                     $0($1, _Glue.orion_sel1)
@@ -1292,10 +1292,10 @@ extension ListRowInteractionListenerViewHook {
 
         static let storage = initializeStorage()
 
-        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 204)
+        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 209)
         private static let orion_sel1 = #selector(ListRowInteractionListenerViewHook.performAction as (ListRowInteractionListenerViewHook) -> ()  -> Void)
         #sourceLocation()
-        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 204)
+        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 209)
         private static var orion_orig1: @convention(c) (Target, Selector)  -> Void = { target, _cmd in
         #sourceLocation()
             (ListRowInteractionListenerViewHook(target: target).performAction())
@@ -1312,7 +1312,7 @@ extension ContentOffliningUIHelperImplementationHook {
         typealias HookType = ContentOffliningUIHelperImplementationHook
 
         final class OrigType: ContentOffliningUIHelperImplementationHook, _GlueClassHookTrampoline {
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 223)
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 228)
             @objc override func downloadToggledWithCurrentAvailability(
                     _ arg1: NSInteger,
                     addAction arg2: NSObject,
@@ -1326,7 +1326,7 @@ extension ContentOffliningUIHelperImplementationHook {
         }
 
         final class SuprType: ContentOffliningUIHelperImplementationHook, _GlueClassHookTrampoline {
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 223)
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 228)
             @objc override func downloadToggledWithCurrentAvailability(
                     _ arg1: NSInteger,
                     addAction arg2: NSObject,
@@ -1335,7 +1335,7 @@ extension ContentOffliningUIHelperImplementationHook {
                     pageURI arg5: NSURL
                 )  {
             #sourceLocation()
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 223)
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 228)
                 callSuper((@convention(c) (UnsafeRawPointer, Selector, NSInteger, NSObject, NSObject, NSString, NSURL)  -> Void).self) {
             #sourceLocation()
                     $0($1, _Glue.orion_sel1, arg1, arg2, arg3, arg4, arg5)
@@ -1345,10 +1345,10 @@ extension ContentOffliningUIHelperImplementationHook {
 
         static let storage = initializeStorage()
 
-        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 223)
+        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 228)
         private static let orion_sel1 = #selector(ContentOffliningUIHelperImplementationHook.downloadToggledWithCurrentAvailability(_:addAction:removeAction:pageIdentifier:pageURI:) as (ContentOffliningUIHelperImplementationHook) -> (NSInteger, NSObject, NSObject, NSString, NSURL)  -> Void)
         #sourceLocation()
-        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 223)
+        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 228)
         private static var orion_orig1: @convention(c) (Target, Selector, NSInteger, NSObject, NSObject, NSString, NSURL)  -> Void = { target, _cmd, arg1, arg2, arg3, arg4, arg5 in
         #sourceLocation()
             (ContentOffliningUIHelperImplementationHook(target: target).downloadToggledWithCurrentAvailability(_:addAction:removeAction:pageIdentifier:pageURI:)(arg1, arg2, arg3, arg4, arg5))
@@ -1365,7 +1365,7 @@ extension ContentOffliningUIHelperImplementationModernHook {
         typealias HookType = ContentOffliningUIHelperImplementationModernHook
 
         final class OrigType: ContentOffliningUIHelperImplementationModernHook, _GlueClassHookTrampoline {
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 238)
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 243)
             @objc override func downloadToggledWithCurrentAvailability(
                     _ arg1: NSInteger,
                     addAction arg2: NSObject,
@@ -1380,7 +1380,7 @@ extension ContentOffliningUIHelperImplementationModernHook {
         }
 
         final class SuprType: ContentOffliningUIHelperImplementationModernHook, _GlueClassHookTrampoline {
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 238)
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 243)
             @objc override func downloadToggledWithCurrentAvailability(
                     _ arg1: NSInteger,
                     addAction arg2: NSObject,
@@ -1390,7 +1390,7 @@ extension ContentOffliningUIHelperImplementationModernHook {
                     interactionID arg6: NSString
                 )  {
             #sourceLocation()
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 238)
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 243)
                 callSuper((@convention(c) (UnsafeRawPointer, Selector, NSInteger, NSObject, NSObject, NSString, NSURL, NSString)  -> Void).self) {
             #sourceLocation()
                     $0($1, _Glue.orion_sel1, arg1, arg2, arg3, arg4, arg5, arg6)
@@ -1400,10 +1400,10 @@ extension ContentOffliningUIHelperImplementationModernHook {
 
         static let storage = initializeStorage()
 
-        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 238)
+        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 243)
         private static let orion_sel1 = #selector(ContentOffliningUIHelperImplementationModernHook.downloadToggledWithCurrentAvailability(_:addAction:removeAction:pageIdentifier:pageURI:interactionID:) as (ContentOffliningUIHelperImplementationModernHook) -> (NSInteger, NSObject, NSObject, NSString, NSURL, NSString)  -> Void)
         #sourceLocation()
-        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 238)
+        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 243)
         private static var orion_orig1: @convention(c) (Target, Selector, NSInteger, NSObject, NSObject, NSString, NSURL, NSString)  -> Void = { target, _cmd, arg1, arg2, arg3, arg4, arg5, arg6 in
         #sourceLocation()
             (ContentOffliningUIHelperImplementationModernHook(target: target).downloadToggledWithCurrentAvailability(_:addAction:removeAction:pageIdentifier:pageURI:interactionID:)(arg1, arg2, arg3, arg4, arg5, arg6))
@@ -1420,7 +1420,7 @@ extension V91ContentOffliningUIHelperImplementationModernHook {
         typealias HookType = V91ContentOffliningUIHelperImplementationModernHook
 
         final class OrigType: V91ContentOffliningUIHelperImplementationModernHook, _GlueClassHookTrampoline {
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 254)
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 259)
             @objc override func downloadToggledWithCurrentAvailability(
                     _ arg1: NSInteger,
                     addAction arg2: NSObject,
@@ -1435,7 +1435,7 @@ extension V91ContentOffliningUIHelperImplementationModernHook {
         }
 
         final class SuprType: V91ContentOffliningUIHelperImplementationModernHook, _GlueClassHookTrampoline {
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 254)
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 259)
             @objc override func downloadToggledWithCurrentAvailability(
                     _ arg1: NSInteger,
                     addAction arg2: NSObject,
@@ -1445,7 +1445,7 @@ extension V91ContentOffliningUIHelperImplementationModernHook {
                     interactionID arg6: NSString
                 )  {
             #sourceLocation()
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 254)
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 259)
                 callSuper((@convention(c) (UnsafeRawPointer, Selector, NSInteger, NSObject, NSObject, NSString, NSURL, NSString)  -> Void).self) {
             #sourceLocation()
                     $0($1, _Glue.orion_sel1, arg1, arg2, arg3, arg4, arg5, arg6)
@@ -1455,10 +1455,10 @@ extension V91ContentOffliningUIHelperImplementationModernHook {
 
         static let storage = initializeStorage()
 
-        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 254)
+        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 259)
         private static let orion_sel1 = #selector(V91ContentOffliningUIHelperImplementationModernHook.downloadToggledWithCurrentAvailability(_:addAction:removeAction:pageIdentifier:pageURI:interactionID:) as (V91ContentOffliningUIHelperImplementationModernHook) -> (NSInteger, NSObject, NSObject, NSString, NSURL, NSString)  -> Void)
         #sourceLocation()
-        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 254)
+        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 259)
         private static var orion_orig1: @convention(c) (Target, Selector, NSInteger, NSObject, NSObject, NSString, NSURL, NSString)  -> Void = { target, _cmd, arg1, arg2, arg3, arg4, arg5, arg6 in
         #sourceLocation()
             (V91ContentOffliningUIHelperImplementationModernHook(target: target).downloadToggledWithCurrentAvailability(_:addAction:removeAction:pageIdentifier:pageURI:interactionID:)(arg1, arg2, arg3, arg4, arg5, arg6))
@@ -1475,7 +1475,7 @@ extension V91ContentOffliningUIHelperImplementationLegacyHook {
         typealias HookType = V91ContentOffliningUIHelperImplementationLegacyHook
 
         final class OrigType: V91ContentOffliningUIHelperImplementationLegacyHook, _GlueClassHookTrampoline {
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 270)
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 275)
             @objc override func downloadToggledWithCurrentAvailability(
                     _ arg1: NSInteger,
                     addAction arg2: NSObject,
@@ -1489,7 +1489,7 @@ extension V91ContentOffliningUIHelperImplementationLegacyHook {
         }
 
         final class SuprType: V91ContentOffliningUIHelperImplementationLegacyHook, _GlueClassHookTrampoline {
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 270)
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 275)
             @objc override func downloadToggledWithCurrentAvailability(
                     _ arg1: NSInteger,
                     addAction arg2: NSObject,
@@ -1498,7 +1498,7 @@ extension V91ContentOffliningUIHelperImplementationLegacyHook {
                     pageURI arg5: NSURL
                 )  {
             #sourceLocation()
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 270)
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 275)
                 callSuper((@convention(c) (UnsafeRawPointer, Selector, NSInteger, NSObject, NSObject, NSString, NSURL)  -> Void).self) {
             #sourceLocation()
                     $0($1, _Glue.orion_sel1, arg1, arg2, arg3, arg4, arg5)
@@ -1508,10 +1508,10 @@ extension V91ContentOffliningUIHelperImplementationLegacyHook {
 
         static let storage = initializeStorage()
 
-        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 270)
+        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 275)
         private static let orion_sel1 = #selector(V91ContentOffliningUIHelperImplementationLegacyHook.downloadToggledWithCurrentAvailability(_:addAction:removeAction:pageIdentifier:pageURI:) as (V91ContentOffliningUIHelperImplementationLegacyHook) -> (NSInteger, NSObject, NSObject, NSString, NSURL)  -> Void)
         #sourceLocation()
-        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 270)
+        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 275)
         private static var orion_orig1: @convention(c) (Target, Selector, NSInteger, NSObject, NSObject, NSString, NSURL)  -> Void = { target, _cmd, arg1, arg2, arg3, arg4, arg5 in
         #sourceLocation()
             (V91ContentOffliningUIHelperImplementationLegacyHook(target: target).downloadToggledWithCurrentAvailability(_:addAction:removeAction:pageIdentifier:pageURI:)(arg1, arg2, arg3, arg4, arg5))
@@ -1528,18 +1528,18 @@ extension V91StudifyDownloadButtonFallbackHook {
         typealias HookType = V91StudifyDownloadButtonFallbackHook
 
         final class OrigType: V91StudifyDownloadButtonFallbackHook, _GlueClassHookTrampoline {
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 285)
-            @objc override func sendAction(_ arg1: Selector, to arg2: AnyObject?, for arg3: UIEvent?)  {
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 290)
+            @objc(sendAction:to:forEvent:)override func sendAction(_ arg1: Selector, to arg2: AnyObject?, for arg3: UIEvent?)  {
             #sourceLocation()
                 _Glue.orion_orig1(target, _Glue.orion_sel1, arg1, arg2, arg3)
             }
         }
 
         final class SuprType: V91StudifyDownloadButtonFallbackHook, _GlueClassHookTrampoline {
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 285)
-            @objc override func sendAction(_ arg1: Selector, to arg2: AnyObject?, for arg3: UIEvent?)  {
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 290)
+            @objc(sendAction:to:forEvent:)override func sendAction(_ arg1: Selector, to arg2: AnyObject?, for arg3: UIEvent?)  {
             #sourceLocation()
-            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 285)
+            #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 290)
                 callSuper((@convention(c) (UnsafeRawPointer, Selector, Selector, AnyObject?, UIEvent?)  -> Void).self) {
             #sourceLocation()
                     $0($1, _Glue.orion_sel1, arg1, arg2, arg3)
@@ -1549,10 +1549,10 @@ extension V91StudifyDownloadButtonFallbackHook {
 
         static let storage = initializeStorage()
 
-        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 285)
+        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 290)
         private static let orion_sel1 = #selector(V91StudifyDownloadButtonFallbackHook.sendAction(_:to:for:) as (V91StudifyDownloadButtonFallbackHook) -> (Selector, AnyObject?, UIEvent?)  -> Void)
         #sourceLocation()
-        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 285)
+        #sourceLocation(file: "Sources/EeveeSpotify/Premium/ServerSidedReminder.x.swift", line: 290)
         private static var orion_orig1: @convention(c) (Target, Selector, Selector, AnyObject?, UIEvent?)  -> Void = { target, _cmd, arg1, arg2, arg3 in
         #sourceLocation()
             (V91StudifyDownloadButtonFallbackHook(target: target).sendAction(_:to:for:)(arg1, arg2, arg3))

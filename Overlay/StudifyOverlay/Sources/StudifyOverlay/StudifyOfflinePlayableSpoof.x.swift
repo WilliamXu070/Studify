@@ -16,6 +16,17 @@ private let studifyPLTrackViewModelClass = "ListUXPlatform_FreeTierPlaylistImpl.
 private let studifyFTPRestrictionResolverClass = "ListUXPlatform_FreeTierPlaylistImpl.FTPPlayRestrictionResolver"
 
 func studifyActivateOfflinePlayableSpoofGroups() {
+    guard !studifyOverlayProbeModeEnabled else {
+        studifyOverlayLog("Unsafe offline playable spoof groups skipped while observe-only probe mode is enabled")
+        StudifyProbeStreamClient.shared.emit(
+            hook: "offline-playable-spoof",
+            phase: "skipped",
+            message: "probe mode observe-only",
+            requireActive: false
+        )
+        return
+    }
+
     guard UserDefaults.standard.bool(forKey: "StudifyEnableUnsafeOfflineSpoofs") else {
         studifyOverlayLog("Offline playable spoof groups skipped; runtime probe must confirm exact selectors before activation")
         StudifyProbeStreamClient.shared.emit(

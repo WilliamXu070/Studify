@@ -1,3 +1,4 @@
+import ObjectiveC
 import UIKit
 
 private struct StudifyFakeTrack: Equatable, Hashable {
@@ -24,17 +25,23 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
     private var tapGesture: UITapGestureRecognizer?
     private var lastVisualProbeLogAt = Date(timeIntervalSince1970: 0)
     private var lastMutationProbeAt = Date(timeIntervalSince1970: 0)
+    private var lastMiniPlayerSkipLogAt = Date(timeIntervalSince1970: 0)
     private var lastControlIntentAt: [PlaybackIntent: Date] = [:]
     private var lastPassiveRowStartAtByTrack: [StudifyFakeTrack: Date] = [:]
     private var lastPressPathProbeAtByTrack: [StudifyFakeTrack: Date] = [:]
+    private var lastGenericTapProbeAt = Date(timeIntervalSince1970: 0)
     private weak var currentVisualRow: UIView?
     private weak var currentMiniPlayerView: UIView?
     private var cachedOfflineModeActive = false
+    private var visualGeneration = 0
 
     private var visibleTracks: [StudifyFakeTrack] = []
     private var currentTrack: StudifyFakeTrack?
     private var isPlaying = false
     private var progress: Float = 0
+    private var directMiniPlayerMutationEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "StudifyAllowDirectMiniPlayerMutation")
+    }
 
     private override init() {
         super.init()
@@ -154,11 +161,18 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         cachedOfflineModeActive = offlineModeActive
 
         guard offlineModeActive else {
-            removeTapRecognizerIfNeeded()
+            if studifyOverlayProbeModeEnabled {
+                installTapRecognizerIfNeeded(on: window)
+            } else {
+                removeTapRecognizerIfNeeded()
+            }
+            StudifySpotifyStateBridge.shared.clearFakeTrack(reason: "offline-mode-inactive")
             if let currentVisualRow {
                 clearSpotifyPlayingVisual(from: currentVisualRow)
             }
+            currentVisualRow = nil
             currentMiniPlayerView = nil
+            visualGeneration += 1
             return
         }
 
@@ -170,16 +184,26 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         var tracks: [StudifyFakeTrack] = []
         var interactiveRows = 0
         var totalMutations = 0
+        var didResolveCurrentVisualRow = false
         for row in rows {
             if offlineModeActive {
                 totalMutations += enableNativeInteraction(in: row)
             }
-            guard let track = track(from: row), !tracks.contains(track) else {
+            guard let track = track(from: row) else {
                 continue
             }
-            interactiveRows += 1
-            tracks.append(track)
-            if offlineModeActive, track == currentTrack {
+            if !tracks.contains(track) {
+                interactiveRows += 1
+                tracks.append(track)
+            }
+            let isExactCurrentRow = currentVisualRow.map { $0 === row } ?? false
+            let shouldAdoptCurrentRow = currentVisualRow == nil
+                && !didResolveCurrentVisualRow
+                && track == currentTrack
+
+            if offlineModeActive, isExactCurrentRow || shouldAdoptCurrentRow {
+                currentVisualRow = row
+                didResolveCurrentVisualRow = true
                 applySpotifyPlayingVisual(to: row, animated: false)
             } else if offlineModeActive {
                 clearSpotifyPlayingVisual(from: row)
@@ -246,21 +270,32 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
     }
 
     @objc private func handleWindowTap(_ recognizer: UITapGestureRecognizer) {
-        guard recognizer.state == .ended, let window = recognizer.view else { return }
+        guard recognizer.state == .ended, let window = recognizer.view as? UIWindow else { return }
         guard cachedOfflineModeActive else { return }
         let point = recognizer.location(in: window)
         guard let hitView = window.hitTest(point, with: nil) else { return }
 
-        guard
-            let row = trackRow(startingAt: hitView),
-            let track = track(from: row)
-        else {
+        guard let row = trackRow(startingAt: hitView) else {
+            if studifyOverlayProbeModeEnabled {
+                logGenericTapProbe(hitView: hitView, window: window, point: point, reason: "no-row-candidate")
+            }
             return
         }
 
         if studifyOverlayProbeModeEnabled {
-            logPressPathProbe(hitView: hitView, row: row, track: track, reason: "window tap ended")
+            StudifyProbeStreamClient.shared.start(reason: "row tap")
+            if let track = track(from: row) {
+                logPressPathProbe(hitView: hitView, row: row, track: track, reason: "window tap ended")
+            } else {
+                logRowTapWithoutTrackProbe(hitView: hitView, row: row, window: window, point: point, reason: "row-without-track")
+            }
+            return
         }
+
+        guard let track = track(from: row) else {
+            return
+        }
+
         start(track: track, row: row, source: "passive row tap")
     }
 
@@ -276,15 +311,16 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         }
 
         let point = touch.location(in: view)
-        guard cachedOfflineModeActive else { return false }
-        guard let hitView = view.hitTest(point, with: nil),
-              let row = trackRow(startingAt: hitView),
-              track(from: row) != nil
-        else {
+        guard cachedOfflineModeActive || studifyOverlayProbeModeEnabled else { return false }
+        guard let hitView = view.hitTest(point, with: nil) else {
             return false
         }
 
-        return true
+        if studifyOverlayProbeModeEnabled {
+            return true
+        }
+
+        return trackRow(startingAt: hitView).flatMap { track(from: $0) } != nil
     }
 
     private func start(track: StudifyFakeTrack, row: UIView? = nil, source: String) {
@@ -301,6 +337,7 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         lastPassiveRowStartAtByTrack[track] = now
 
         currentTrack = track
+        publishFakeSpotifyTrack(track, reason: source)
         if !visibleTracks.contains(track) {
             visibleTracks.insert(track, at: 0)
         }
@@ -309,6 +346,7 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         if let row {
             setCurrentSpotifyVisualRow(row)
         }
+        StudifySpotifyStateBridge.shared.recordFakeSelection(title: track.title, artist: track.artist, reason: source)
         applyNativeMiniPlayerVisual(track: track)
         if studifyOverlayProbeModeEnabled, let row {
             logNativePlaybackStateProbe(row: row, track: track, reason: "passive-row-tap")
@@ -357,25 +395,63 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         )
     }
 
+    private func publishFakeSpotifyTrack(_ track: StudifyFakeTrack, reason: String) {
+        StudifySpotifyStateBridge.shared.setFakeTrack(
+            title: track.title,
+            artist: track.artist,
+            uri: fakeSpotifyURI(for: track),
+            reason: reason
+        )
+    }
+
+    private func fakeSpotifyURI(for track: StudifyFakeTrack) -> String {
+        let raw = "\(track.artist)-\(track.title)".lowercased()
+        let allowed = CharacterSet.alphanumerics
+        let identifier = raw.unicodeScalars
+            .map { allowed.contains($0) ? String($0) : "-" }
+            .joined()
+            .split(separator: "-")
+            .joined(separator: "-")
+        return "studify:local:\(identifier.isEmpty ? "test-mp3" : identifier)"
+    }
+
     private func setCurrentSpotifyVisualRow(_ row: UIView) {
         guard cachedOfflineModeActive else { return }
+
+        visualGeneration += 1
+        let generation = visualGeneration
 
         if let previousRow = currentVisualRow, previousRow !== row {
             clearSpotifyPlayingVisual(from: previousRow)
         }
 
         currentVisualRow = row
+        clearOtherSpotifyPlayingVisuals(keeping: row)
         applySpotifyPlayingVisual(to: row, animated: true)
         studifyOverlayLog("Fast Spotify row visual applied offline-only")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self, weak row] in
             guard let self, let row, row.window != nil else { return }
             guard self.cachedOfflineModeActive else { return }
+            guard self.visualGeneration == generation, self.currentVisualRow === row else { return }
+            self.clearOtherSpotifyPlayingVisuals(keeping: row)
             self.applySpotifyPlayingVisual(to: row, animated: false)
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self, weak row] in
             guard let self, let row, row.window != nil else { return }
             guard self.cachedOfflineModeActive else { return }
+            guard self.visualGeneration == generation, self.currentVisualRow === row else { return }
+            self.clearOtherSpotifyPlayingVisuals(keeping: row)
             self.applySpotifyPlayingVisual(to: row, animated: false)
+        }
+    }
+
+    private func clearOtherSpotifyPlayingVisuals(keeping currentRow: UIView?) {
+        guard let window = activeWindow() else { return }
+        var rows: [UIView] = []
+        collectTrackRows(in: window, into: &rows, depth: 0)
+
+        for row in rows where currentRow.map({ $0 !== row }) ?? true {
+            clearSpotifyPlayingVisual(from: row)
         }
     }
 
@@ -535,24 +611,31 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
     }
 
     private func applyNativeMiniPlayerVisual(track: StudifyFakeTrack) {
+        guard directMiniPlayerMutationEnabled else {
+            let now = Date()
+            if now.timeIntervalSince(lastMiniPlayerSkipLogAt) > 3 {
+                lastMiniPlayerSkipLogAt = now
+                studifyOverlayLog("State-first mode skipped direct mini-player UI mutation")
+            }
+            StudifySpotifyStateBridge.shared.logCurrentSpotifyState(reason: "mini-player-update-skipped")
+            return
+        }
+
         guard cachedOfflineModeActive, let window = activeWindow() else { return }
-        guard let miniPlayer = currentMiniPlayerView ?? findNativeMiniPlayer(in: window) else { return }
+        let cachedMiniPlayer = currentMiniPlayerView.flatMap { view in
+            isNativeMiniPlayerCandidate(view, in: window) ? view : nil
+        }
+        guard let miniPlayer = cachedMiniPlayer ?? findNativeMiniPlayer(in: window) else {
+            let now = Date()
+            if now.timeIntervalSince(lastMiniPlayerSkipLogAt) > 3 {
+                lastMiniPlayerSkipLogAt = now
+                studifyOverlayLog("Native mini player visual skipped no candidate")
+            }
+            return
+        }
         currentMiniPlayerView = miniPlayer
 
-        let labels = labels(in: miniPlayer)
-            .filter { label in
-                guard !label.isHidden, label.alpha > 0.01 else { return false }
-                let text = (label.text ?? label.accessibilityLabel ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                return !text.isEmpty && !isMiniPlayerIgnoredText(text)
-            }
-            .sorted { lhs, rhs in
-                let left = lhs.convert(lhs.bounds, to: window)
-                let right = rhs.convert(rhs.bounds, to: window)
-                if abs(left.minY - right.minY) > 2 {
-                    return left.minY < right.minY
-                }
-                return left.minX < right.minX
-            }
+        let labels = miniPlayerLabels(in: miniPlayer, window: window)
 
         if let titleLabel = labels.first {
             updateMiniPlayerLabel(titleLabel, text: track.title, color: .white)
@@ -577,23 +660,88 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
     }
 
     private func findNativeMiniPlayer(in window: UIWindow) -> UIView? {
-        let bottomThreshold = window.bounds.height - max(window.safeAreaInsets.bottom, 0) - 190
-        return views(in: window, maxDepth: 10)
-            .filter { view in
-                let className = NSStringFromClass(type(of: view))
-                let rect = view.convert(view.bounds, to: window)
-                return className.contains("NowPlaying_BarPageImpl")
-                    && rect.minY >= bottomThreshold
-                    && rect.width >= window.bounds.width * 0.75
-                    && rect.height >= 36
-                    && rect.height <= 96
+        let candidates = views(in: window, maxDepth: 14).compactMap { view -> (view: UIView, score: Int, rect: CGRect)? in
+            guard isNativeMiniPlayerCandidate(view, in: window) else { return nil }
+
+            let rect = view.convert(view.bounds, to: window)
+            let className = NSStringFromClass(type(of: view)).lowercased()
+            var score = 0
+
+            if className.contains("nowplaying") { score += 50 }
+            if className.contains("player") { score += 30 }
+            if className.contains("bar") { score += 20 }
+            if className.contains("mini") { score += 12 }
+            if views(in: view, maxDepth: 4).contains(where: { $0 is UIProgressView }) { score += 18 }
+            if views(in: view, maxDepth: 4).contains(where: { $0.accessibilityIdentifier?.contains("PlayIndicator") == true }) { score += 10 }
+            if rect.minY >= window.bounds.height - max(window.safeAreaInsets.bottom, 0) - 145 { score += 10 }
+            if rect.height >= 48 && rect.height <= 88 { score += 8 }
+
+            return (view, score, rect)
+        }
+
+        let chosen = candidates
+            .sorted { lhs, rhs in
+                if lhs.score != rhs.score {
+                    return lhs.score > rhs.score
+                }
+                if abs(lhs.rect.minY - rhs.rect.minY) > 2 {
+                    return lhs.rect.minY > rhs.rect.minY
+                }
+                return lhs.rect.height < rhs.rect.height
+            }
+            .first
+
+        if let chosen {
+            studifyOverlayLog("Native mini player candidate class=\(NSStringFromClass(type(of: chosen.view))) score=\(chosen.score) frame=\(format(rect: chosen.rect))")
+        }
+
+        return chosen?.view
+    }
+
+    private func isNativeMiniPlayerCandidate(_ view: UIView, in window: UIWindow) -> Bool {
+        guard !view.isHidden, view.alpha > 0.01 else { return false }
+
+        let rect = view.convert(view.bounds, to: window)
+        let bottomInset = max(window.safeAreaInsets.bottom, 0)
+        let bottomThreshold = window.bounds.height - bottomInset - 210
+
+        guard rect.minY >= bottomThreshold,
+              rect.maxY <= window.bounds.height + 4,
+              rect.width >= window.bounds.width * 0.68,
+              rect.height >= 36,
+              rect.height <= 120
+        else {
+            return false
+        }
+
+        let labels = miniPlayerLabels(in: view, window: window)
+        guard labels.count >= 2 else { return false }
+
+        let visibleText = labels
+            .compactMap { $0.text ?? $0.accessibilityLabel }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        let tabHits = Set(["home", "search", "your library", "create"]).intersection(visibleText)
+
+        return tabHits.count < 2
+    }
+
+    private func miniPlayerLabels(in miniPlayer: UIView, window: UIWindow) -> [UILabel] {
+        labels(in: miniPlayer)
+            .filter { label in
+                guard !label.isHidden, label.alpha > 0.01 else { return false }
+                let rect = label.convert(label.bounds, to: window)
+                guard rect.width > 4, rect.height > 4 else { return false }
+                let text = (label.text ?? label.accessibilityLabel ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                return !text.isEmpty && !isMiniPlayerIgnoredText(text)
             }
             .sorted { lhs, rhs in
                 let left = lhs.convert(lhs.bounds, to: window)
                 let right = rhs.convert(rhs.bounds, to: window)
-                return left.height > right.height
+                if abs(left.minY - right.minY) > 2 {
+                    return left.minY < right.minY
+                }
+                return left.minX < right.minX
             }
-            .first
     }
 
     private func updateMiniPlayerLabel(_ label: UILabel, text: String, color: UIColor) {
@@ -625,6 +773,8 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
 
         studifyOverlayLog("Native playback bridge toggled isPlaying=\(isPlaying) source=\(source)")
         if let currentTrack {
+            publishFakeSpotifyTrack(currentTrack, reason: source)
+            StudifySpotifyStateBridge.shared.recordFakeSelection(title: currentTrack.title, artist: currentTrack.artist, reason: source)
             applyNativeMiniPlayerVisual(track: currentTrack)
         }
         StudifyProbeStreamClient.shared.emit(
@@ -649,6 +799,14 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         progress = 0
         isPlaying = StudifyLocalAudioPlayer.shared.playTestMP3(restart: true)
         if let currentTrack {
+            publishFakeSpotifyTrack(currentTrack, reason: source)
+            if let row = visibleRow(for: currentTrack) {
+                setCurrentSpotifyVisualRow(row)
+            } else {
+                currentVisualRow = nil
+                clearOtherSpotifyPlayingVisuals(keeping: nil)
+            }
+            StudifySpotifyStateBridge.shared.recordFakeSelection(title: currentTrack.title, artist: currentTrack.artist, reason: source)
             applyNativeMiniPlayerVisual(track: currentTrack)
         }
         studifyOverlayLog("Native playback bridge next source=\(source)")
@@ -677,6 +835,14 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         progress = 0
         isPlaying = StudifyLocalAudioPlayer.shared.playTestMP3(restart: true)
         if let currentTrack {
+            publishFakeSpotifyTrack(currentTrack, reason: source)
+            if let row = visibleRow(for: currentTrack) {
+                setCurrentSpotifyVisualRow(row)
+            } else {
+                currentVisualRow = nil
+                clearOtherSpotifyPlayingVisuals(keeping: nil)
+            }
+            StudifySpotifyStateBridge.shared.recordFakeSelection(title: currentTrack.title, artist: currentTrack.artist, reason: source)
             applyNativeMiniPlayerVisual(track: currentTrack)
         }
         studifyOverlayLog("Native playback bridge previous source=\(source)")
@@ -716,6 +882,15 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
 
         for subview in view.subviews {
             collectTrackRows(in: subview, into: &rows, depth: depth + 1)
+        }
+    }
+
+    private func visibleRow(for track: StudifyFakeTrack) -> UIView? {
+        guard let window = activeWindow() else { return nil }
+        var rows: [UIView] = []
+        collectTrackRows(in: window, into: &rows, depth: 0)
+        return rows.first { row in
+            self.track(from: row) == track
         }
     }
 
@@ -827,12 +1002,14 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
         let rowResponderChain = responderChain(from: row, limit: 14).joined(separator: " > ")
         let gestureSummary = gestureRecognizerSummary(startingAt: hitView, limit: 8)
         let selectorSummary = selectorResponseSummary(startingAt: row, limit: 8)
+        let slotSummary = objectSlotValueSummary(startingAt: row, limit: 8)
+        let uriCandidates = uriCandidateSummary(from: slotSummary + selectorSummary)
         let controlSummary = nearestControl.map { control in
             "\(NSStringFromClass(type(of: control))) enabled=\(control.isEnabled) selected=\(control.isSelected) highlighted=\(control.isHighlighted) actions=\(controlActionSummary(control))"
         } ?? "none"
 
         studifyOverlayLog(
-            "Passive press path probe reason=\(reason) title=\(track.title) artist=\(track.artist) hit=\(hitClass) row=\(rowClass) labels=\(labels) nearestControl=\(controlSummary) viewChain=\(viewChain) responderChain=\(hitResponderChain) rowResponderChain=\(rowResponderChain) gestures=\(gestureSummary.joined(separator: " || ")) selectors=\(selectorSummary.joined(separator: " || "))"
+            "Passive press path probe reason=\(reason) title=\(track.title) artist=\(track.artist) hit=\(hitClass) row=\(rowClass) labels=\(labels) nearestControl=\(controlSummary) uriCandidates=\(uriCandidates.joined(separator: " || ")) viewChain=\(viewChain) responderChain=\(hitResponderChain) rowResponderChain=\(rowResponderChain) gestures=\(gestureSummary.joined(separator: " || ")) selectors=\(selectorSummary.joined(separator: " || ")) slots=\(slotSummary.joined(separator: " || "))"
         )
         StudifyProbeStreamClient.shared.emit(
             hook: "native-playback",
@@ -850,12 +1027,122 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
                 "responderChain": hitResponderChain,
                 "rowResponderChain": rowResponderChain,
                 "gestures": gestureSummary,
-                "selectors": selectorSummary
+                "selectors": selectorSummary,
+                "slots": slotSummary,
+                "uriCandidates": uriCandidates
             ],
             throttleKey: "press-path-\(track.title)",
             minInterval: 0.75,
             requireActive: false
         )
+    }
+
+    private func logRowTapWithoutTrackProbe(hitView: UIView, row: UIView, window: UIWindow, point: CGPoint, reason: String) {
+        let hitClass = NSStringFromClass(type(of: hitView))
+        let rowClass = NSStringFromClass(type(of: row))
+        let labels = usefulTextValues(in: row, maxDepth: 6)
+            .prefix(10)
+            .joined(separator: " | ")
+        let slotSummary = objectSlotValueSummary(startingAt: row, limit: 10)
+        let selectorSummary = selectorResponseSummary(startingAt: row, limit: 10)
+        let uriCandidates = uriCandidateSummary(from: slotSummary + selectorSummary)
+        let viewChain = viewAncestorChain(from: hitView, limit: 16).joined(separator: " > ")
+        let responder = responderChain(from: hitView, limit: 16).joined(separator: " > ")
+
+        studifyOverlayLog(
+            "Probe row tap without track reason=\(reason) hit=\(hitClass) row=\(rowClass) point=\(format(Float(point.x))),\(format(Float(point.y))) labels=\(labels) uriCandidates=\(uriCandidates.joined(separator: " || ")) viewChain=\(viewChain) responderChain=\(responder) selectors=\(selectorSummary.joined(separator: " || ")) slots=\(slotSummary.joined(separator: " || "))"
+        )
+        StudifyProbeStreamClient.shared.emit(
+            hook: "row-tap",
+            phase: "without-track",
+            message: reason,
+            className: rowClass,
+            data: [
+                "hitClass": hitClass,
+                "rowClass": rowClass,
+                "point": ["x": point.x, "y": point.y],
+                "labels": labels,
+                "uriCandidates": uriCandidates,
+                "viewChain": viewChain,
+                "responderChain": responder,
+                "selectors": selectorSummary,
+                "slots": slotSummary
+            ],
+            throttleKey: "row-tap-without-track-\(rowClass)-\(labels)",
+            minInterval: 0.25,
+            requireActive: false
+        )
+    }
+
+    private func logGenericTapProbe(hitView: UIView, window: UIWindow, point: CGPoint, reason: String) {
+        let now = Date()
+        guard now.timeIntervalSince(lastGenericTapProbeAt) > 0.2 else { return }
+        lastGenericTapProbeAt = now
+
+        let hitClass = NSStringFromClass(type(of: hitView))
+        let text = usefulTextValues(in: hitView, maxDepth: 4)
+            .prefix(8)
+            .joined(separator: " | ")
+        let viewChain = viewAncestorChain(from: hitView, limit: 16).joined(separator: " > ")
+        let responder = responderChain(from: hitView, limit: 16).joined(separator: " > ")
+        let nearestRow = nearestRowCandidate(startingAt: hitView, in: window)
+        let nearestRowSummary = nearestRow.map { row -> [String: Any] in
+            [
+                "className": NSStringFromClass(type(of: row)),
+                "text": usefulTextValues(in: row, maxDepth: 5).prefix(10).joined(separator: " | "),
+                "selectors": selectorResponseSummary(startingAt: row, limit: 8),
+                "slots": objectSlotValueSummary(startingAt: row, limit: 8)
+            ]
+        } ?? [:]
+
+        studifyOverlayLog(
+            "Probe generic tap reason=\(reason) hit=\(hitClass) point=\(format(Float(point.x))),\(format(Float(point.y))) text=\(text) nearestRow=\(nearestRowSummary) viewChain=\(viewChain) responderChain=\(responder)"
+        )
+        StudifyProbeStreamClient.shared.start(reason: "generic tap")
+        StudifyProbeStreamClient.shared.emit(
+            hook: "tap",
+            phase: reason,
+            message: hitClass,
+            className: hitClass,
+            data: [
+                "point": ["x": point.x, "y": point.y],
+                "text": text,
+                "viewChain": viewChain,
+                "responderChain": responder,
+                "nearestRow": nearestRowSummary
+            ],
+            throttleKey: "generic-tap-\(hitClass)-\(text)",
+            minInterval: 0.2,
+            requireActive: false
+        )
+    }
+
+    private func nearestRowCandidate(startingAt view: UIView, in window: UIWindow) -> UIView? {
+        var current: UIView? = view
+        var depth = 0
+
+        while let candidate = current, depth < 16 {
+            let rect = candidate.convert(candidate.bounds, to: window)
+            let className = NSStringFromClass(type(of: candidate)).lowercased()
+            let text = usefulTextValues(in: candidate, maxDepth: 5)
+            let rowish = className.contains("cell")
+                || className.contains("row")
+                || className.contains("track")
+                || className.contains("element")
+
+            if rowish,
+               rect.width >= 160,
+               rect.height >= 24,
+               rect.height <= 180,
+               !text.isEmpty {
+                return candidate
+            }
+
+            current = candidate.superview
+            depth += 1
+        }
+
+        return nil
     }
 
     private func nearestControlAncestor(startingAt view: UIView) -> UIControl? {
@@ -971,6 +1258,204 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
             return ["none"]
         }
         return summaries
+    }
+
+    private func objectSlotValueSummary(startingAt view: UIView, limit: Int) -> [String] {
+        let selectorNames = [
+            "model",
+            "viewModel",
+            "item",
+            "itemIdentifier",
+            "identifier",
+            "uri",
+            "URI",
+            "trackUri",
+            "trackURI",
+            "viewURI",
+            "pageURI",
+            "track",
+            "currentTrack",
+            "playState",
+            "playbackState",
+            "restriction",
+            "playabilityRestriction",
+            "playRestrictionResolver",
+            "trackRowEventHandler",
+            "listPlayer",
+            "player",
+            "delegate",
+            "target"
+        ]
+
+        var summaries: [String] = []
+        var current: UIView? = view
+        var depth = 0
+
+        while let candidate = current, depth < limit {
+            let object = candidate as NSObject
+            var values: [String] = []
+
+            for selectorName in selectorNames {
+                guard let value = performObjectSelector(selectorName, on: object) else {
+                    continue
+                }
+
+                let described = describeSlotValue(value)
+                guard !described.isEmpty else {
+                    continue
+                }
+
+                values.append("\(selectorName)=\(described)")
+            }
+
+            if !values.isEmpty {
+                summaries.append("\(depth):\(NSStringFromClass(type(of: candidate))){\(values.prefix(8).joined(separator: ","))}")
+            }
+
+            current = candidate.superview
+            depth += 1
+        }
+
+        if summaries.isEmpty {
+            return ["none"]
+        }
+        return summaries
+    }
+
+    private func uriCandidateSummary(from values: [String]) -> [String] {
+        let joined = values.joined(separator: " ")
+        let patterns = [
+            #"spotify:track:[A-Za-z0-9]+"#,
+            #"spotify:episode:[A-Za-z0-9]+"#,
+            #"spotify:local:[^,\s\}\|]+"#,
+            #"spotify:[A-Za-z]+:[^,\s\}\|]+"#
+        ]
+
+        var found: [String] = []
+        for pattern in patterns {
+            guard let expression = try? NSRegularExpression(pattern: pattern) else {
+                continue
+            }
+            let range = NSRange(joined.startIndex..<joined.endIndex, in: joined)
+            for match in expression.matches(in: joined, range: range) {
+                guard let swiftRange = Range(match.range, in: joined) else {
+                    continue
+                }
+                let value = String(joined[swiftRange])
+                if !found.contains(value) {
+                    found.append(value)
+                }
+            }
+        }
+
+        if found.isEmpty {
+            return ["none"]
+        }
+        return Array(found.prefix(12))
+    }
+
+    private func performObjectSelector(_ selectorName: String, on object: NSObject) -> AnyObject? {
+        let selector = Selector((selectorName))
+        guard object.responds(to: selector),
+              methodReturnsObject(selector, on: object)
+        else {
+            return nil
+        }
+
+        return object.perform(selector)?.takeUnretainedValue()
+    }
+
+    private func methodReturnsObject(_ selector: Selector, on object: NSObject) -> Bool {
+        guard let method = class_getInstanceMethod(type(of: object), selector),
+              let encodingPointer = method_getTypeEncoding(method)
+        else {
+            return false
+        }
+
+        let encoding = String(cString: encodingPointer)
+        return encoding.hasPrefix("@")
+    }
+
+    private func describeSlotValue(_ value: AnyObject) -> String {
+        if let string = value as? String {
+            return cleanInline(string)
+        }
+
+        if let string = value as? NSString {
+            return cleanInline(string as String)
+        }
+
+        if let url = value as? URL {
+            return cleanInline(url.absoluteString)
+        }
+
+        if let url = value as? NSURL {
+            return cleanInline(url.absoluteString ?? "")
+        }
+
+        if let dictionary = value as? NSDictionary {
+            var pairs: [String] = []
+            for (key, value) in dictionary {
+                let keyString = cleanInline("\(key)")
+                let valueString = cleanInline("\(value)")
+                guard !keyString.isEmpty, !valueString.isEmpty else { continue }
+                pairs.append("\(keyString):\(valueString)")
+            }
+            return "dict{\(pairs.prefix(6).joined(separator: "|"))}"
+        }
+
+        if let object = value as? NSObject {
+            let className = NSStringFromClass(type(of: object))
+            let trackSummary = trackLikeSummary(for: object)
+            if !trackSummary.isEmpty {
+                return "\(className){\(trackSummary)}"
+            }
+            return className
+        }
+
+        return cleanInline("\(value)")
+    }
+
+    private func trackLikeSummary(for object: NSObject) -> String {
+        let title = firstReadableString(from: object, selectorNames: ["trackTitle", "title", "name"])
+        let artist = firstReadableString(from: object, selectorNames: ["artistTitle", "artistName", "artist", "artistDisplayName"])
+        let uri = firstReadableString(from: object, selectorNames: ["URI", "uri", "trackURI", "trackUri"])
+
+        return [
+            title.isEmpty ? nil : "title=\(title)",
+            artist.isEmpty ? nil : "artist=\(artist)",
+            uri.isEmpty ? nil : "uri=\(uri)"
+        ]
+        .compactMap { $0 }
+        .joined(separator: "|")
+    }
+
+    private func firstReadableString(from object: NSObject, selectorNames: [String]) -> String {
+        for selectorName in selectorNames {
+            guard let value = performObjectSelector(selectorName, on: object) else {
+                continue
+            }
+
+            let string = describeSlotValue(value)
+            if !string.isEmpty {
+                return string
+            }
+        }
+
+        return ""
+    }
+
+    private func cleanInline(_ value: String) -> String {
+        let cleaned = value
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+            .replacingOccurrences(of: "\t", with: " ")
+
+        if cleaned.count > 180 {
+            return "\(cleaned.prefix(180))..."
+        }
+        return cleaned
     }
 
     private func controlActionSummary(_ control: UIControl) -> String {

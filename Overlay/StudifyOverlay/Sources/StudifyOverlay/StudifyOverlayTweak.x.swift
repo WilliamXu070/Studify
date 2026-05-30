@@ -3,7 +3,9 @@ import Orion
 import UIKit
 
 let studifyOverlayDefaultServerURL = "http://172.17.144.67:8787"
-let studifyOverlayProbeModeEnabled = false
+var studifyOverlayProbeModeEnabled: Bool {
+    studifyOverlayProbeModeIsEnabled()
+}
 private var didShowStudifyOverlayProbe = false
 private var lastStudifyOverlaySignalAt = Date(timeIntervalSince1970: 0)
 
@@ -77,10 +79,15 @@ struct StudifyOverlay: Tweak {
             studifyOverlayLog("Activated UIControl download hook group")
         }
 
+        studifyActivateSpotifyStateBridge()
+        studifyActivateBannerStateProbe()
         studifyActivateOfflinePlayableSpoofGroups()
         StudifyFakePlaybackController.shared.install()
+        StudifyOnlinePlaybackProbe.shared.install()
 
         if studifyOverlayProbeModeEnabled {
+            studifyActivateOfflinePathwayMethodProbeGroups()
+
             if !StudifyOverlayProbeHookGroup.isActive {
                 StudifyOverlayProbeHookGroup().activate()
                 studifyOverlayLog("Activated Studify probe hook group")
@@ -283,6 +290,7 @@ class StudifyOverlayUIControlHook: ClassHook<UIControl> {
         }
 
         StudifyFakePlaybackController.shared.observePlaybackControl(target, actionName: actionName)
+        StudifyOnlinePlaybackProbe.shared.observeControl(target, actionName: actionName, receiver: receiver, event: event)
         orig.sendAction(action, to: receiver, for: event)
     }
 }

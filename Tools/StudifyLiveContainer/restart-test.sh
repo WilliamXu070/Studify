@@ -14,6 +14,9 @@ TEST_MP3="${TEST_MP3:-/private/tmp/studify-test.mp3}"
 SERVER_URL_FILE="${SERVER_URL_FILE:-/private/tmp/studify-server-url.txt}"
 STUDIFY_SERVER_URL="${STUDIFY_SERVER_URL:-}"
 LOG_DEST="${LOG_DEST:-/private/tmp/studify_overlay_debug_latest.log}"
+EMPTY_LOG="${EMPTY_LOG:-/private/tmp/studify-overlay-empty-log.txt}"
+PROBE_DEST="${PROBE_DEST:-/private/tmp/studify_probe_events_latest.jsonl}"
+EMPTY_PROBE_LOG="${EMPTY_PROBE_LOG:-/private/tmp/studify-probe-empty-log.jsonl}"
 NO_BUILD=0
 
 usage() {
@@ -31,9 +34,10 @@ Environment overrides:
   SERVER_URL_FILE
   STUDIFY_SERVER_URL
   LOG_DEST
+  PROBE_DEST
 
 This builds/copies StudifyOverlay.dylib, optionally refreshes test.mp3 and
-StudifyLibrary/server-url.txt,
+StudifyLibrary/server-url.txt, clears stale overlay/probe logs,
 terminates LiveContainer if running, relaunches it, and pulls the overlay log.
 USAGE
 }
@@ -282,6 +286,24 @@ else
   echo "warning: server URL file not found at $SERVER_URL_FILE; leaving existing phone config unchanged"
 fi
 
+printf '' > "$EMPTY_LOG"
+run xcrun devicectl device copy to \
+  --device "$DEVICE_ID" \
+  --domain-type appDataContainer \
+  --domain-identifier "$LIVECONTAINER_BUNDLE_ID" \
+  --source "$EMPTY_LOG" \
+  --destination tmp/studify_overlay_debug.log \
+  --json-output /private/tmp/studify-clear-overlay-log-restart-test.json
+
+printf '' > "$EMPTY_PROBE_LOG"
+run xcrun devicectl device copy to \
+  --device "$DEVICE_ID" \
+  --domain-type appDataContainer \
+  --domain-identifier "$LIVECONTAINER_BUNDLE_ID" \
+  --source "$EMPTY_PROBE_LOG" \
+  --destination tmp/studify_probe_events.jsonl \
+  --json-output /private/tmp/studify-clear-probe-log-restart-test.json
+
 run xcrun devicectl device process launch \
   --device "$DEVICE_ID" \
   "$LIVECONTAINER_BUNDLE_ID" \
@@ -304,9 +326,23 @@ else
   echo "warning: overlay log was not pulled; open Spotify inside LiveContainer, interact once, then pull it manually"
 fi
 
+if xcrun devicectl device copy from \
+  --device "$DEVICE_ID" \
+  --domain-type appDataContainer \
+  --domain-identifier "$LIVECONTAINER_BUNDLE_ID" \
+  --source tmp/studify_probe_events.jsonl \
+  --destination "$PROBE_DEST" \
+  --json-output /private/tmp/studify-pull-probe-restart-test.json; then
+  echo ""
+  echo "latest Studify probe events: $PROBE_DEST"
+  node Tools/StudifyLiveContainer/summarize-probe-events.js "$PROBE_DEST" "$LOG_DEST"
+else
+  echo "warning: probe events were not pulled; interact once, then run Tools/StudifyLiveContainer/pull-probe-report.sh"
+fi
+
 echo ""
 echo "Next on iPhone:"
 echo "1. If Spotify did not open automatically, open it inside LiveContainer."
 echo "2. Go to a real playlist."
 echo "3. Tap a song row."
-echo "4. Pull logs again if behavior looks wrong."
+echo "4. Run Tools/StudifyLiveContainer/pull-probe-report.sh immediately after the prompt/playback result."

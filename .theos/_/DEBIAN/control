@@ -6,5 +6,5 @@ Author: Eevee
 Section: Tweaks
 Depends: dev.theos.orion (>= 1.0.0), firmware (>= 14.0)
 Architecture: iphoneos-arm64
-Version: 6.6.2-8+debug
-Installed-Size: 16016
+Version: 6.6.2-19+debug
+Installed-Size: 16032

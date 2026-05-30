@@ -95,6 +95,7 @@ function recordProbeEvent(payload, req) {
     remoteAddress: req.socket.remoteAddress,
     deviceId: String(payload.deviceId || "unknown-device"),
     sessionId: String(payload.sessionId || "default"),
+    sequence: Number(payload.sequence || 0),
     hook: String(payload.hook || "unknown-hook"),
     phase: String(payload.phase || "hit"),
     message: String(payload.message || ""),
@@ -481,7 +482,8 @@ function dashboardHtml() {
 
       const meta = document.createElement("div");
       meta.className = "meta";
-      meta.textContent = probe.at + " | " + probe.deviceId + " | " +
+      meta.textContent = "#" + String(probe.sequence || 0) + " | " +
+        probe.at + " | " + probe.deviceId + " | " +
         (probe.className || "-") + " | " + (probe.selector || "-") +
         " | " + JSON.stringify(probe.data || {});
 
