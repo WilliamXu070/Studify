@@ -61,13 +61,19 @@ func activateV91StudifyDownloadSignalGroup() {
     let modernSelector = Selector(("downloadToggledWithCurrentAvailability:addAction:removeAction:pageIdentifier:pageURI:interactionID:"))
     let legacySelector = Selector(("downloadToggledWithCurrentAvailability:addAction:removeAction:pageIdentifier:pageURI:"))
 
-    guard let targetClass = NSClassFromString(targetName) as? NSObject.Type else {
+    let targetClass = NSClassFromString(targetName) as? NSObject.Type
+
+    guard let targetClass else {
         writeDebugLog("[STUDIFY] Offline helper hook target missing: \(targetName)")
+        if !V91StudifyDownloadButtonFallbackGroup.isActive {
+            V91StudifyDownloadButtonFallbackGroup().activate()
+            writeDebugLog("[STUDIFY] Activated 9.1.x UIControl download fallback hook")
+        }
         return
     }
 
     var didActivate = false
-
+    
     if targetClass.instancesRespond(to: modernSelector) {
         V91StudifyDownloadSignalGroup().activate()
         writeDebugLog("[STUDIFY] Activated 9.1.x modern playlist download signal hook")

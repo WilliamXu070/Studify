@@ -1,0 +1,9 @@
+Package: com.studify.overlay
+Name: Studify Overlay
+Version: 0.1.0
+Architecture: iphoneos-arm64
+Description: Studify control-plane overlay loaded on top of a base Eevee Spotify IPA.
+Maintainer: Studify
+Author: Studify
+Section: Tweaks
+Depends: firmware (>= 14.0)

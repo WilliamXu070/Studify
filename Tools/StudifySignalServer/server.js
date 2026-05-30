@@ -9,6 +9,8 @@ const host = process.env.HOST || "0.0.0.0";
 
 const jobs = new Map();
 const clients = new Set();
+const probeEvents = [];
+const maxProbeEvents = Number(process.env.MAX_PROBE_EVENTS || 500);
 
 function nowISO() {
   return new Date().toISOString();
@@ -84,6 +86,31 @@ function broadcast(event, payload) {
   for (const client of clients) {
     client.write(body);
   }
+}
+
+function recordProbeEvent(payload, req) {
+  const event = {
+    id: makeJobId(),
+    at: nowISO(),
+    remoteAddress: req.socket.remoteAddress,
+    deviceId: String(payload.deviceId || "unknown-device"),
+    sessionId: String(payload.sessionId || "default"),
+    hook: String(payload.hook || "unknown-hook"),
+    phase: String(payload.phase || "hit"),
+    message: String(payload.message || ""),
+    className: String(payload.className || ""),
+    selector: String(payload.selector || ""),
+    spotifyVersion: String(payload.spotifyVersion || "unknown"),
+    data: payload.data && typeof payload.data === "object" ? payload.data : {},
+  };
+
+  probeEvents.push(event);
+  while (probeEvents.length > maxProbeEvents) {
+    probeEvents.shift();
+  }
+
+  broadcast("probe.event", event);
+  return event;
 }
 
 function updateJob(jobId, patch) {
@@ -273,6 +300,9 @@ function dashboardHtml() {
       grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.8fr);
       gap: 16px;
     }
+    .full {
+      margin-top: 16px;
+    }
     section {
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -329,12 +359,26 @@ function dashboardHtml() {
       line-height: 1.5;
       color: #d8dee5;
     }
+    .probe-events {
+      height: 520px;
+    }
     .event {
       padding: 8px;
       margin-bottom: 8px;
       border: 1px solid var(--line);
       border-radius: 6px;
       background: #121518;
+    }
+    .event.probe {
+      border-left: 3px solid var(--accent);
+    }
+    .event strong {
+      color: var(--text);
+    }
+    .event .meta {
+      color: var(--muted);
+      margin-top: 4px;
+      overflow-wrap: anywhere;
     }
     pre {
       overflow-x: auto;
@@ -372,6 +416,11 @@ function dashboardHtml() {
       </section>
     </div>
 
+    <section class="full">
+      <h2>Probe Stream</h2>
+      <div id="probeEvents" class="events probe-events"></div>
+    </section>
+
     <section style="margin-top: 16px;">
       <h2>Manual Test</h2>
       <pre>curl -X POST ${publicBaseUrl()}/v1/jobs/playlist \\
@@ -384,6 +433,7 @@ function dashboardHtml() {
     const jobs = new Map();
     const jobsEl = document.getElementById("jobs");
     const eventsEl = document.getElementById("events");
+    const probeEventsEl = document.getElementById("probeEvents");
     const connectionEl = document.getElementById("connection");
 
     function chipClass(state) {
@@ -420,6 +470,30 @@ function dashboardHtml() {
       eventsEl.prepend(div);
     }
 
+    function addProbeEvent(probe) {
+      const div = document.createElement("div");
+      div.className = "event probe";
+
+      const title = document.createElement("div");
+      title.innerHTML = '<strong>' + escapeHtml(probe.hook) + '</strong> ' +
+        '<span style="color:var(--accent)">' + escapeHtml(probe.phase) + '</span> ' +
+        escapeHtml(probe.message || "");
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = probe.at + " | " + probe.deviceId + " | " +
+        (probe.className || "-") + " | " + (probe.selector || "-") +
+        " | " + JSON.stringify(probe.data || {});
+
+      div.appendChild(title);
+      div.appendChild(meta);
+      probeEventsEl.prepend(div);
+
+      while (probeEventsEl.children.length > 200) {
+        probeEventsEl.lastElementChild.remove();
+      }
+    }
+
     function escapeHtml(value) {
       return String(value).replace(/[&<>"']/g, (char) => ({
         "&": "&amp;",
@@ -438,6 +512,13 @@ function dashboardHtml() {
       renderJobs();
     }
 
+    async function loadProbeEvents() {
+      const response = await fetch("/v1/probe/events");
+      const data = await response.json();
+      probeEventsEl.innerHTML = "";
+      for (const probe of data.events.slice().reverse()) addProbeEvent(probe);
+    }
+
     function startEvents() {
       const events = new EventSource("/events");
       events.onopen = () => { connectionEl.textContent = "connected"; };
@@ -454,9 +535,13 @@ function dashboardHtml() {
         addEvent("updated", job);
         renderJobs();
       });
+      events.addEventListener("probe.event", (event) => {
+        addProbeEvent(JSON.parse(event.data));
+      });
     }
 
     loadJobs();
+    loadProbeEvents();
     startEvents();
   </script>
 </body>
@@ -499,6 +584,7 @@ function route(req, res) {
       ok: true,
       at: nowISO(),
       jobs: jobs.size,
+      probeEvents: probeEvents.length,
       publicBaseUrl: publicBaseUrl(),
     });
     return;
@@ -508,6 +594,32 @@ function route(req, res) {
     sendJson(res, 200, {
       jobs: Array.from(jobs.values()),
     });
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/v1/probe/events") {
+    sendJson(res, 200, {
+      ok: true,
+      events: probeEvents.slice(-maxProbeEvents),
+    });
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/v1/probe/events") {
+    readJsonBody(req)
+      .then((payload) => {
+        const event = recordProbeEvent(payload, req);
+        sendJson(res, 202, {
+          ok: true,
+          eventId: event.id,
+        });
+      })
+      .catch((error) => {
+        sendJson(res, 400, {
+          ok: false,
+          error: error.message,
+        });
+      });
     return;
   }
 

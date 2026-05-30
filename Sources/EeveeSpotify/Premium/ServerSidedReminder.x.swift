@@ -55,6 +55,7 @@ private func handleStudifyDownloadToggle(pageURI: NSURL) {
 }
 
 private var lastStudifyFallbackSignalAt = Date(timeIntervalSince1970: 0)
+private var didShowStudifyFallbackProbe = false
 
 private func collectStudifyControlText(from view: UIView, depth: Int = 0) -> [String] {
     guard depth <= 4 else { return [] }
@@ -107,7 +108,11 @@ private func studifyLooksLikeDownloadControl(_ control: UIControl, actionName: S
     let values = collectStudifyControlContext(from: control)
     let joined = (values + [actionName]).joined(separator: " ").lowercased()
 
-    guard joined.contains("download") else {
+    let mentionsDownloadIntent = joined.contains("download")
+        || joined.contains("offline")
+        || joined.contains("offlining")
+
+    guard mentionsDownloadIntent else {
         return false
     }
 
@@ -282,12 +287,21 @@ class V91StudifyDownloadButtonFallbackHook: ClassHook<UIControl> {
     typealias Group = V91StudifyDownloadButtonFallbackGroup
     static let targetName = "UIControl"
 
+    @objc(sendAction:to:forEvent:)
     func sendAction(_ action: Selector, to receiver: AnyObject?, for event: UIEvent?) {
+        if !didShowStudifyFallbackProbe {
+            didShowStudifyFallbackProbe = true
+            let actionName = NSStringFromSelector(action)
+            writeDebugLog("[STUDIFY] UIControl fallback hook active; first action=\(actionName)")
+            StudifyDebugVisualAid.controlHookActive(actionName)
+        }
+
         guard studifyLooksLikeDownloadControl(target, actionName: NSStringFromSelector(action)) else {
             orig.sendAction(action, to: receiver, for: event)
             return
         }
 
         sendStudifyFallbackDownloadSignal(from: target)
+        orig.sendAction(action, to: receiver, for: event)
     }
 }

@@ -8,6 +8,12 @@ SPOTIFY_IPA="${1:-Decrryted IPA/com.spotify.client-9.1.28-Decrypted.ipa}"
 VERSION="6.6.2"
 OUTPUT_DIR="Outputs/IPAS"
 
+export THEOS="${THEOS:-/Users/williamxu/theos}"
+export THEOS_PACKAGE_SCHEME="${THEOS_PACKAGE_SCHEME:-rootless}"
+export HOME="${STUDIFY_BUILD_HOME:-/private/tmp/studify-home}"
+export PATH="/private/tmp/studify-bin:$THEOS/bin:$PATH"
+mkdir -p "$HOME" "$HOME/.ivinject"
+
 # Determine package scheme (rootful=arm, rootless=arm64)
 PACKAGE_SCHEME="${THEOS_PACKAGE_SCHEME:-rootful}"
 if [ "$PACKAGE_SCHEME" = "rootless" ]; then

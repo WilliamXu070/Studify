@@ -87,7 +87,7 @@ private func modifyAttributes(_ attributes: inout [String: AccountAttribute]) {
     }
 
     attributes["name"] = AccountAttribute.with {
-        $0.stringValue = "Spotify Premium"
+        $0.stringValue = "Studify"
     }
 
     attributes["nft-disabled"] = AccountAttribute.with {

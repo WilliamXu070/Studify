@@ -1,62 +1,12 @@
 import UIKit
 
-enum StudifyDebugVisualAid {
-    private static let bannerTag = 0x570D1F
+enum StudifyOverlayBanner {
+    private static let bannerTag = 0x570D20
 
-    static func controlHookActive(_ detail: String) {
-        show(
-            title: "STUDIFY UICONTROL HOOK ACTIVE",
-            detail: detail,
-            backgroundColor: UIColor(red: 0.32, green: 0.35, blue: 0.40, alpha: 0.96),
-            duration: 4
-        )
-    }
-
-    static func intercepted(_ detail: String) {
-        show(
-            title: "STUDIFY HOOK FIRED",
-            detail: detail,
-            backgroundColor: UIColor(red: 0.95, green: 0.62, blue: 0.08, alpha: 0.96),
-            duration: 5
-        )
-    }
-
-    static func posting(_ detail: String) {
-        show(
-            title: "STUDIFY POST STARTED",
-            detail: detail,
-            backgroundColor: UIColor(red: 0.09, green: 0.40, blue: 0.95, alpha: 0.96),
-            duration: 5
-        )
-    }
-
-    static func accepted(_ detail: String) {
-        show(
-            title: "STUDIFY SERVER ACCEPTED",
-            detail: detail,
-            backgroundColor: UIColor(red: 0.12, green: 0.58, blue: 0.28, alpha: 0.96),
-            duration: 5
-        )
-    }
-
-    static func failed(_ detail: String) {
-        show(
-            title: "STUDIFY REQUEST FAILED",
-            detail: detail,
-            backgroundColor: UIColor(red: 0.78, green: 0.12, blue: 0.16, alpha: 0.96),
-            duration: 7
-        )
-    }
-
-    private static func show(
-        title: String,
-        detail: String,
-        backgroundColor: UIColor,
-        duration: TimeInterval
-    ) {
+    static func show(title: String, detail: String, color: UIColor, duration: TimeInterval) {
         DispatchQueue.main.async {
             guard let window = activeWindow() else {
-                writeDebugLog("[STUDIFY] Visual aid could not find an active window: \(title) \(detail)")
+                studifyOverlayLog("Banner could not find active window: \(title) \(detail)")
                 return
             }
 
@@ -65,7 +15,7 @@ enum StudifyDebugVisualAid {
             let banner = UIView()
             banner.tag = bannerTag
             banner.translatesAutoresizingMaskIntoConstraints = false
-            banner.backgroundColor = backgroundColor
+            banner.backgroundColor = color
             banner.layer.cornerRadius = 10
             banner.layer.borderWidth = 1
             banner.layer.borderColor = UIColor.white.withAlphaComponent(0.25).cgColor

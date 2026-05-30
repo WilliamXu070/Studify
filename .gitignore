@@ -1,0 +1,26 @@
+.DS_Store
+
+# Theos and build products
+.theos/
+Build/
+.build/
+DerivedData/
+*.dSYM/
+*.swiftmodule
+*.swiftdoc
+*.swiftsourceinfo
+*.swiftdeps
+*.o
+*.Td
+
+# Generated packages and app archives
+packages/
+*.deb
+*.ipa
+Outputs/
+Overlay/**/.theos/
+Overlay/**/packages/
+
+# Local logs and temp files
+*.log
+*.tmp

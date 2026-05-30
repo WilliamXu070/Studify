@@ -10,13 +10,18 @@ final class StudifyDownloadSignalClient {
     static let shared = StudifyDownloadSignalClient()
 
     private let serverURLDefaultsKey = "StudifySignalServerURL"
-    private let defaultServerBaseURLString = "http://172.18.147.149:8787"
+    private let defaultServerBaseURLString = "http://172.17.144.67:8787"
     private let clientVersion = "studify-ios-0.1"
+    private let serverConfigRelativePaths = [
+        "StudifyLibrary/server-url.txt",
+        "studify-server-url.txt"
+    ]
 
     private init() { }
 
     private var serverBaseURLString: String {
-        UserDefaults.container.string(forKey: serverURLDefaultsKey)
+        serverURLFromDocuments()
+            ?? UserDefaults.container.string(forKey: serverURLDefaultsKey)
             ?? defaultServerBaseURLString
     }
 
@@ -109,6 +114,27 @@ final class StudifyDownloadSignalClient {
         }
 
         return payload
+    }
+
+    private func serverURLFromDocuments() -> String? {
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+
+        for relativePath in serverConfigRelativePaths {
+            let url = documentsURL.appendingPathComponent(relativePath, isDirectory: false)
+            guard let rawValue = try? String(contentsOf: url, encoding: .utf8) else {
+                continue
+            }
+
+            let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") else {
+                writeDebugLog("[STUDIFY] Ignoring invalid server URL override at \(relativePath): \(trimmed)")
+                continue
+            }
+
+            return trimmed
+        }
+
+        return nil
     }
 
     private func playlistURLString(from playlistURI: String) -> String {

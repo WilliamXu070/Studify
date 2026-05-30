@@ -1,4 +1,5 @@
 import Foundation
+import MachO
 import SwiftUI
 import libroot
 
@@ -24,6 +25,10 @@ class BundleHelper {
             if let b = Bundle(path: jbPath) {
                 self.bundle = b
                 NSLog("[EeveeSpotify] Loaded bundle from filesystem: \(jbPath)")
+            } else if let liveContainerPath = Self.liveContainerBundlePath(bundleName: bundleName),
+                      let b = Bundle(path: liveContainerPath) {
+                self.bundle = b
+                NSLog("[EeveeSpotify] Loaded bundle from LiveContainer tweak folder: \(liveContainerPath)")
             } else {
                 NSLog("[EeveeSpotify] ERROR: Could not find EeveeSpotify.bundle!")
                 self.bundle = nil
@@ -70,5 +75,32 @@ class BundleHelper {
         return try ResolveConfiguration(
             serializedBytes: try Data(contentsOf: url)
         )
+    }
+
+    private static func liveContainerBundlePath(bundleName: String) -> String? {
+        for imageIndex in 0..<_dyld_image_count() {
+            guard let imageName = _dyld_get_image_name(imageIndex) else {
+                continue
+            }
+
+            let imagePath = String(cString: imageName)
+            guard imagePath.hasSuffix("/EeveeSpotify.dylib")
+                || imagePath.contains("/EeveeSpotify.framework/")
+            else {
+                continue
+            }
+
+            let imageDirectory = URL(fileURLWithPath: imagePath).deletingLastPathComponent()
+            let candidates = [
+                imageDirectory.appendingPathComponent("\(bundleName).bundle").path,
+                imageDirectory.deletingLastPathComponent().appendingPathComponent("\(bundleName).bundle").path
+            ]
+
+            if let path = candidates.first(where: FileManager.default.fileExists(atPath:)) {
+                return path
+            }
+        }
+
+        return nil
     }
 }
