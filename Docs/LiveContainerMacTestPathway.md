@@ -33,7 +33,9 @@ directly installed bundle `com.spotify.client.25P4CVCPW5` has its own app data
 container and does not consume LiveContainer's `Documents/Tweaks/...` payload.
 For that direct app, build `Outputs/IPAS/StudifyFull-9.1.28-25P4CVCPW5.ipa`
 with `./build-studify-full-ipa.sh` and install that IPA through the normal app
-installation path.
+installation path. Then use
+`Tools/StudifyLiveContainer/standalone-spotify-test.sh` for direct-app config
+and log pulls.
 
 The local audio proof file lives inside LiveContainer's virtual Spotify container:
 

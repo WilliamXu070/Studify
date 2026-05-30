@@ -59,6 +59,23 @@ folders to apply. Build the standalone artifact instead:
 That produces `Outputs/IPAS/StudifyFull-9.1.28-25P4CVCPW5.ipa` with the same
 recovered offline seed behavior embedded in the app.
 
+After installing or launching the direct bundle, use:
+
+```sh
+PROBE_MODE=0 STATE_BRIDGE=0 Tools/StudifyLiveContainer/standalone-spotify-test.sh
+```
+
+This writes the same `Documents/StudifyLibrary` state files into the standalone
+Spotify app data container, clears `tmp/studify_overlay_debug.log`, launches the
+direct app, and pulls logs to `/private/tmp/studify_standalone_*`.
+
+After manually tapping a song row in the direct app, do not rerun the setup mode
+because it clears logs. Pull evidence with:
+
+```sh
+Tools/StudifyLiveContainer/standalone-spotify-test.sh --pull-only
+```
+
 ## Current Click Flow
 
 The simulation should be triggered by a user pressing a song row while Spotify

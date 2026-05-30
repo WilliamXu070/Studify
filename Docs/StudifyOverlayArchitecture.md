@@ -103,6 +103,19 @@ deployment shape from LiveContainer's inner Spotify. Launching that bundle does
 not read `Documents/Tweaks/...` from LiveContainer's data container; use the
 full IPA artifact when testing the direct app.
 
+For direct-app diagnostics, use:
+
+```bash
+PROBE_MODE=0 STATE_BRIDGE=0 Tools/StudifyLiveContainer/standalone-spotify-test.sh
+```
+
+It targets the standalone app data container, not LiveContainer's virtual
+container, and pulls `/tmp/studify_standalone_overlay_debug_latest.log` plus
+`/tmp/studify_standalone_probe_events_latest.jsonl`.
+
+After a manual row tap in the direct app, use `--pull-only` so the helper does
+not clear the evidence logs before copying them.
+
 ## Server
 
 The overlay currently posts to:

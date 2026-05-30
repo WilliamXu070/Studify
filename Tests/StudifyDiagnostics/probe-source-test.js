@@ -25,6 +25,7 @@ const onlineProbe = read("Overlay/StudifyOverlay/Sources/StudifyOverlay/StudifyO
 const bannerProbe = read("Overlay/StudifyOverlay/Sources/StudifyOverlay/StudifyBannerStateProbe.x.swift");
 const promptProbe = read("Overlay/StudifyOverlay/Sources/StudifyOverlay/StudifyPromptPresentationProbe.x.swift");
 const restartTest = read("Tools/StudifyLiveContainer/restart-test.sh");
+const standaloneTest = read("Tools/StudifyLiveContainer/standalone-spotify-test.sh");
 const fullIpaBuild = read("build-studify-full-ipa.sh");
 
 assert(
@@ -120,6 +121,22 @@ assert(
     fullIpaBuild.includes("LC_ALL=C grep -aFq") &&
     fullIpaBuild.includes("Native playback bridge seeded offline user intent"),
   "full IPA build helper must package the recovered overlay into the standalone Spotify bundle id"
+);
+
+assert(
+  standaloneTest.includes("com.spotify.client.25P4CVCPW5") &&
+    standaloneTest.includes("Documents/StudifyLibrary/probe-mode.txt") &&
+    standaloneTest.includes("Documents/StudifyLibrary/probe-upload.txt") &&
+    standaloneTest.includes("Documents/StudifyLibrary/state-bridge.txt") &&
+    standaloneTest.includes("tmp/studify_overlay_debug.log") &&
+    standaloneTest.includes("tmp/studify_probe_events.jsonl") &&
+    standaloneTest.includes("--pull-only") &&
+    standaloneTest.includes("build-studify-full-ipa.sh") &&
+    standaloneTest.includes("device install app") &&
+    standaloneTest.includes("process-scoped coordinated install") &&
+    standaloneTest.includes("summarize-probe-events.js") &&
+    standaloneTest.includes("seeded silent playback fallback will still report playing=true"),
+  "standalone Spotify helper must configure and pull logs from the direct installed bundle"
 );
 
 assert(

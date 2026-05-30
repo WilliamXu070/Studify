@@ -161,6 +161,15 @@ shapes:
     `com.spotify.client.25P4CVCPW5`.
   - The helper verifies the output bundle id and that the embedded overlay
     contains `Native playback bridge seeded offline user intent`.
+  - Configure, launch, and pull logs for that direct bundle with:
+    `PROBE_MODE=0 STATE_BRIDGE=0 Tools/StudifyLiveContainer/standalone-spotify-test.sh`
+  - After a manual row tap in the direct bundle, pull without clearing logs:
+    `Tools/StudifyLiveContainer/standalone-spotify-test.sh --pull-only`
+  - If the direct bundle is stale, install the fresh full IPA with:
+    `Tools/StudifyLiveContainer/standalone-spotify-test.sh --install`
+  - If install reports a process-scoped coordinated install, do not count the
+    direct bundle as updated; clear that stale coordinator on-device or install
+    the IPA through SideStore/AltStore.
 
 Do not confuse these paths during verification. Launching
 `com.spotify.client.25P4CVCPW5` directly does not consume the LiveContainer
