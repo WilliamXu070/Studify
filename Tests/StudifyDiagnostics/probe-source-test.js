@@ -70,6 +70,9 @@ assert(
     fakePlayback.includes("Native playback bridge using seeded track for offline row press") &&
     fakePlayback.includes("Native playback bridge using seeded fallback for offline row press without readable row track") &&
     fakePlayback.includes("Native playback bridge accepting offline row touch for seeded fallback without readable row track") &&
+    fakePlayback.includes("observeOfflineRowControlAction") &&
+    fakePlayback.includes("Native playback bridge using seeded fallback for offline row control action without readable row track") &&
+    fakePlayback.includes('source == "passive row tap" || source == "passive row control"') &&
     fakePlayback.includes("seedOfflinePlaybackIntentIfNeeded") &&
     fakePlayback.includes("Native playback bridge seeded offline user intent") &&
     fakePlayback.includes("scheduleFakeSpotifyTrackReassertions") &&
@@ -81,6 +84,13 @@ assert(
     read("Overlay/StudifyOverlay/Sources/StudifyOverlay/StudifySpotifyStateBridge.x.swift").includes("overrideTrackURI") &&
     read("Overlay/StudifyOverlay/Sources/StudifyOverlay/StudifySpotifyStateBridge.x.swift").includes("func URI() -> NSURL?"),
   "offline simulation must seed Gimme Love from explicit offline user intents and reassert title/artist/URI through the state bridge"
+);
+
+assert(
+  overlayTweak.includes("observeOfflineRowControlAction(target, actionName: actionName)") &&
+    overlayTweak.indexOf("observeOfflineRowControlAction(target, actionName: actionName)") <
+      overlayTweak.indexOf("observePlaybackControl(target, actionName: actionName)"),
+  "UIControl hook must route offline row actions into the fake playback controller before generic playback controls"
 );
 
 assert(

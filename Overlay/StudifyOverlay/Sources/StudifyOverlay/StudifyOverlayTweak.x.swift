@@ -294,6 +294,7 @@ class StudifyOverlayUIControlHook: ClassHook<UIControl> {
             return
         }
 
+        StudifyFakePlaybackController.shared.observeOfflineRowControlAction(target, actionName: actionName)
         StudifyFakePlaybackController.shared.observePlaybackControl(target, actionName: actionName)
         StudifyOnlinePlaybackProbe.shared.observeControl(target, actionName: actionName, receiver: receiver, event: event)
         orig.sendAction(action, to: receiver, for: event)
