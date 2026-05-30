@@ -24,6 +24,7 @@ grep -Fq "Studify native playback bridge installed" <<< "$STRINGS" || fail "miss
 grep -Fq "Native playback bridge started" <<< "$STRINGS" || fail "missing native bridge playback marker"
 grep -Fq "Native playback bridge using seeded track for offline row press" <<< "$STRINGS" || fail "missing row-press seed marker"
 grep -Fq "Native playback bridge seeded offline user intent" <<< "$STRINGS" || fail "missing control-intent seed marker"
+grep -Fq "Native playback bridge accepting offline row touch for seeded fallback without readable row track" <<< "$STRINGS" || fail "missing row-touch fallback admission marker"
 grep -Fq "Native playback bridge using seeded fallback for offline row press without readable row track" <<< "$STRINGS" || fail "missing row fallback seed marker"
 grep -Fq "Native playback bridge reasserted fake Spotify state" <<< "$STRINGS" || fail "missing row-press reassert marker"
 grep -Fq "spotify:track:3CUovld1O1HdAOrkgMlvNx" <<< "$STRINGS" || fail "missing seeded Gimme Love URI"

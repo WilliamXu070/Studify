@@ -69,6 +69,7 @@ assert(
     fakePlayback.includes('source == "passive row tap"') &&
     fakePlayback.includes("Native playback bridge using seeded track for offline row press") &&
     fakePlayback.includes("Native playback bridge using seeded fallback for offline row press without readable row track") &&
+    fakePlayback.includes("Native playback bridge accepting offline row touch for seeded fallback without readable row track") &&
     fakePlayback.includes("seedOfflinePlaybackIntentIfNeeded") &&
     fakePlayback.includes("Native playback bridge seeded offline user intent") &&
     fakePlayback.includes("scheduleFakeSpotifyTrackReassertions") &&

@@ -350,7 +350,14 @@ final class StudifyFakePlaybackController: NSObject, UIGestureRecognizerDelegate
             return true
         }
 
-        return trackRow(startingAt: hitView).flatMap { track(from: $0) } != nil
+        if let row = trackRow(startingAt: hitView) {
+            if track(from: row) == nil {
+                studifyOverlayLog("Native playback bridge accepting offline row touch for seeded fallback without readable row track")
+            }
+            return true
+        }
+
+        return false
     }
 
     private func start(track rawTrack: StudifyFakeTrack, row: UIView? = nil, source: String) {
