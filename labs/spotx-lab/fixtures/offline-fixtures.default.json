@@ -1,0 +1,11 @@
+{
+  "enabled": false,
+  "forceOffline": true,
+  "tracks": [
+    {
+      "uri": "spotify:track:REPLACE_WITH_TRACK_URI",
+      "id": "REPLACE_WITH_TRACK_ID",
+      "note": "UI-only fixture. Set enabled=true and repatch the lab to mark matching track data as downloaded."
+    }
+  ]
+}

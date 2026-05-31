@@ -19,6 +19,8 @@
   <a href="#requirements">Requirements</a> •
   <a href="#features">Features</a> •
   <a href="#installation--update">Installation</a> •
+  <a href="#local-patching">Local patching</a> •
+  <a href="#spotx-lab">SpotX Lab</a> •
   <a href="#uninstall">Uninstall</a> •
   <a href="#faq">FAQ</a> •
   <a href="#disclaimer">Disclaimer</a>
@@ -174,6 +176,53 @@ You can specify various parameters for a more flexible installation, more [detai
 </details>
 
 </details>
+
+</details>
+
+<h1 id="local-patching">Local patching</h1>
+
+If you want to modify SpotX behavior for your own project, use the local patch path directly:
+
+```ps1
+.\run.ps1 -CustomPatchesPath .\patches\patches.json -new_theme -adsections_off
+```
+
+`-CustomPatchesPath` also supports alias `-cp`.
+`-LocalResourcesPath` (alias `-lr`) loads `js-helper`, `css-helper`, and `res` from a local folder for isolated testing.
+
+Files to edit for personal changes:
+- `patches/patches.json` (patch match/replace rules and settings)
+- `js-helper/*` (JavaScript snippets injected into Spotify web UI files)
+- `css-helper/*` (styles injected into Spotify web UI)
+- `res/login.spa` (resource payload)
+
+<h1 id="spotx-lab">SpotX Lab</h1>
+
+Use the local lab runner to test tweak changes on an isolated Spotify copy:
+
+```ps1
+.\scripts\Run-SpotxLab.ps1 -Profile default -SpotifySourcePath "$env:APPDATA\Spotify" -ForceRecreate
+```
+
+The lab workflow does three things:
+
+- copies a Spotify install into `.\\labs\\spotx-lab\\workspace\\<profile>` (if not already present),
+- loads the local canary patch file from `.\\labs\\spotx-lab\\patches\\patches.canary.json`,
+- loads local helper files from `.\\labs\\spotx-lab\\helpers`.
+
+To test a canary tweak, edit one of:
+
+- `labs/spotx-lab/patches/patches.canary.json`
+- `labs/spotx-lab/helpers/js-helper/*`
+- `labs/spotx-lab/helpers/css-helper/*`
+
+Then run the command again for a fresh patched install:
+
+```ps1
+.\scripts\Run-SpotxLab.ps1 -Profile default -SpotifySourcePath "$env:APPDATA\Spotify" -ForceRecreate -StartSpotify
+```
+
+Add `-StartSpotify` to launch Spotify automatically after patching and test the UI/features right away.
 
 <h1 id="uninstall">Uninstall</h1>
 

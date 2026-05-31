@@ -1,0 +1,14 @@
+﻿{
+  "name": "default",
+  "description": "Canary local lab profile",
+  "runParameters": {
+    "enableLocalAssets": true,
+    "patchesPath": "patches/patches.canary.json"
+  },
+  "extraArgs": [
+    "-podcasts_on",
+    "-block_update_on",
+    "-l",
+    "en"
+  ]
+}

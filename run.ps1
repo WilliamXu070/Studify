@@ -27,6 +27,14 @@ param
     [Alias('cp')]
     [string]$CustomPatchesPath,
 
+    [Parameter(HelpMessage = 'Local filesystem path to SpotX helper/resource files for development (js-helper, css-helper, res).')]
+    [Alias('lr')]
+    [string]$LocalResourcesPath,
+
+    [Parameter(HelpMessage = 'Local JSON fixture file for SpotX Lab offline UI-state tests.')]
+    [Alias('of')]
+    [string]$OfflineFixturesPath,
+
     [Parameter(HelpMessage = "Use github.io mirror instead of raw.githubusercontent.")]
     [Alias("m")]
     [switch]$mirror,
@@ -138,7 +146,10 @@ param
 
     # Deprecated parameters
     [Parameter(HelpMessage = 'Deprecated, old lyrics are enabled by default')]
-    [switch]$old_lyrics
+    [switch]$old_lyrics,
+
+    [Parameter(HelpMessage = 'Disable runtime network lookups where a local cache can be used.')]
+    [switch]$OfflineMode
 )
 
 # Ignore errors from `Stop-Process`
@@ -324,6 +335,16 @@ function Format-LanguageCode {
 
 $spotifyDirectory = Join-Path $env:APPDATA 'Spotify'
 $spotifyDirectory2 = Join-Path $env:LOCALAPPDATA 'Spotify'
+$spotxLocalResourcesPath = $null
+if ($LocalResourcesPath) {
+    try {
+        $spotxLocalResourcesPath = (Resolve-Path -LiteralPath $LocalResourcesPath -ErrorAction Stop).Path
+    }
+    catch {
+        Write-Warning "LocalResourcesPath is not valid: $LocalResourcesPath"
+        $spotxLocalResourcesPath = $null
+    }
+}
 
 # Использовать кастомный путь если указан параметр -SpotifyPath
 if ($SpotifyPath) {
@@ -417,10 +438,38 @@ function CallLang($clg) {
     }
 }
 
+function Get-OfflineLanguageScript {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$LanguageCode
+    )
+
+    $candidatePaths = @()
+    if ($spotxLocalResourcesPath) {
+        $candidatePaths += Join-Path (Join-Path $spotxLocalResourcesPath 'installer-lang') "$LanguageCode.ps1"
+    }
+
+    $candidatePaths += Join-Path $PSScriptRoot "scripts\installer-lang\$LanguageCode.ps1"
+
+    $localLanguageScript = $candidatePaths | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+    return $localLanguageScript
+}
+
 # Set language code for script.
 $langCode = Format-LanguageCode -LanguageCode $Language
 
-$lang = CallLang -clg $langCode
+$lang = $null
+
+if ($OfflineMode) {
+    $offlineLangScript = Get-OfflineLanguageScript -LanguageCode $langCode
+    if ($offlineLangScript) {
+        . $offlineLangScript
+    }
+}
+
+if (-not $lang) {
+    $lang = CallLang -clg $langCode
+}
 
 Write-Host ($lang).Welcome
 Write-Host
@@ -661,7 +710,7 @@ else {
 
 $onlineDownloadVersion = $onlineFull
 
-if (Test-SpotifyVersionRequiresResolution -SpotifyVersion $onlineFull) {
+if (-not $OfflineMode -and (Test-SpotifyVersionRequiresResolution -SpotifyVersion $onlineFull)) {
     try {
         $onlineInstallerArchitecture = Get-SpotifyInstallerArchitecture `
             -SystemArchitecture $systemArchitecture `
@@ -719,6 +768,33 @@ function Get {
     Write-Host "ERROR: " -ForegroundColor Red -NoNewline; Write-Host "Failed to retrieve data from $Url" -ForegroundColor White
     Write-Host
     return $null
+}
+
+function Get-SpotXAsset {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$EndPath,
+        [int]$MaxRetries = 3,
+        [int]$RetrySeconds = 3,
+        [string]$OutputPath
+    )
+
+    $normalized = $EndPath.TrimStart('/')
+    $localFilePath = if ($spotxLocalResourcesPath) {
+        Join-Path $spotxLocalResourcesPath $normalized
+    }
+
+    if ($localFilePath -and (Test-Path -LiteralPath $localFilePath -PathType Leaf)) {
+        Write-Host ("Using local SpotX asset: {0}" -f $localFilePath)
+        Write-Host
+        if ($OutputPath) {
+            Copy-Item -Path $localFilePath -Destination $OutputPath -Force
+            return $null
+        }
+        return [System.IO.File]::ReadAllText($localFilePath, [System.Text.Encoding]::UTF8)
+    }
+
+    return Get -Url (Get-Link -e "/$normalized") -MaxRetries $MaxRetries -RetrySeconds $RetrySeconds -OutputPath $OutputPath
 }
 
 function Get-PatchesJson {
@@ -1595,6 +1671,12 @@ if ($spotifyInstalled) {
     # Check version Spotify offline
     $offline = (Get-Item $spotifyExecutable).VersionInfo.FileVersion
 
+    if ($OfflineMode) {
+        $online = (Get-SpotifyVersionNumber -SpotifyVersion $offline).ToString()
+        $onlineFull = $offline
+        $onlineDownloadVersion = $offline
+    }
+
     # Version comparison
     # converting strings to arrays of numbers using the -split operator and a foreach loop
 
@@ -1774,7 +1856,7 @@ $ch = $null
 
 
 # updated Russian translation
-if ($langCode -eq 'ru' -and [version]$offline -ge [version]"1.1.92.644") {
+if (!$OfflineMode -and $langCode -eq 'ru' -and [version]$offline -ge [version]"1.1.92.644") {
 
     $webjsonru = Get -Url (Get-Link -e "/patches/Augmented%20translation/ru.json")
 
@@ -3203,17 +3285,45 @@ if ($test_spa) {
 
     # Send new versions
     if (!($sendversion_off)) {
-        $checkVersion = Get -Url (Get-Link -e "/js-helper/checkVersion.js")
+        $checkVersion = Get-SpotXAsset -EndPath "/js-helper/checkVersion.js"
 
         if ($checkVersion -ne $null) {
             injection -p $xpui_spa_patch -f "spotx-helper" -n "checkVersion.js" -c $checkVersion
         }
     }
 
+    # SpotX Lab: UI-only offline/downloaded fixtures for isolated offline testing.
+    $offlineFixture = Get-SpotXAsset -EndPath "/js-helper/offlineFixture.js"
+    if ($offlineFixture -ne $null) {
+        $fixtureJson = '{"enabled":false,"tracks":[]}'
+        $fixturePath = $null
+        if ($OfflineFixturesPath) {
+            $fixturePath = $OfflineFixturesPath
+        }
+        elseif ($spotxLocalResourcesPath) {
+            $fixturePath = Join-Path (Split-Path -Parent $spotxLocalResourcesPath) 'offline-fixtures.json'
+        }
+
+        if ($fixturePath -and (Test-Path -LiteralPath $fixturePath -PathType Leaf)) {
+            try {
+                $fixtureJson = Get-Content -LiteralPath $fixturePath -Raw -Encoding UTF8 | ConvertFrom-Json | ConvertTo-Json -Depth 12 -Compress
+                Write-Host ("Using SpotX Lab offline fixtures: {0}" -f $fixturePath)
+                Write-Host
+            }
+            catch {
+                Write-Warning "Failed to parse OfflineFixturesPath: $fixturePath"
+                Write-Warning $_.Exception.Message
+            }
+        }
+
+        $offlineFixture = $offlineFixture.Replace('/* SPOTX_OFFLINE_FIXTURES_JSON */ {"enabled":false,"tracks":[]}', $fixtureJson)
+        injection -p $xpui_spa_patch -f "spotx-helper" -n "offlineFixture.js" -c $offlineFixture
+    }
+
     # Hiding Ad-like sections or turn off podcasts from the homepage
     if ($podcast_off -or $adsections_off -or $canvashome_off) {
 
-        $section = Get -Url (Get-Link -e "/js-helper/sectionBlock.js")
+        $section = Get-SpotXAsset -EndPath "/js-helper/sectionBlock.js"
 
         if ($section -ne $null) {
 
@@ -3239,7 +3349,7 @@ if ($test_spa) {
     # goofy History
     if ($urlform_goofy -and $idbox_goofy) {
 
-        $goofy = Get -Url (Get-Link -e "/js-helper/goofyHistory.js")
+        $goofy = Get-SpotXAsset -EndPath "/js-helper/goofyHistory.js"
 
         if ($goofy -ne $null) {
 
@@ -3249,8 +3359,8 @@ if ($test_spa) {
 
     # Static color for lyrics
     if ($lyrics_stat) {
-        $rulesContent = Get -Url (Get-Link -e "/css-helper/lyrics-color/rules.css")
-        $colorsContent = Get -Url (Get-Link -e "/css-helper/lyrics-color/colors.css")
+        $rulesContent = Get-SpotXAsset -EndPath "/css-helper/lyrics-color/rules.css"
+        $colorsContent = Get-SpotXAsset -EndPath "/css-helper/lyrics-color/colors.css"
 
         $colorsContent = $colorsContent -replace '{{past}}', "$($webjson.others.themelyrics.theme.$lyrics_stat.pasttext)"
         $colorsContent = $colorsContent -replace '{{current}}', "$($webjson.others.themelyrics.theme.$lyrics_stat.current)"
@@ -3422,7 +3532,7 @@ extract -counts 'exe' -helper 'Binary'
 # fix login for old versions
 if ([version]$offline -ge [version]"1.1.87.612" -and [version]$offline -le [version]"1.2.5.1006") {
     $login_spa = Join-Path (Join-Path $spotifyDirectory 'Apps') 'login.spa'
-    Get -Url (Get-Link -e "/res/login.spa") -OutputPath $login_spa
+    Get-SpotXAsset -EndPath "/res/login.spa" -OutputPath $login_spa
 }
 
 # Disable Startup client
