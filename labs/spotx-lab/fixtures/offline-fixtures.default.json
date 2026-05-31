@@ -1,11 +1,19 @@
 {
-  "enabled": false,
+  "enabled": true,
   "forceOffline": true,
+  "showMarkers": true,
   "tracks": [
     {
-      "uri": "spotify:track:REPLACE_WITH_TRACK_URI",
-      "id": "REPLACE_WITH_TRACK_ID",
-      "note": "UI-only fixture. Set enabled=true and repatch the lab to mark matching track data as downloaded."
+      "title": "Chopin: Nocturne No. 20 in C-Sharp Minor, Op. Posth.",
+      "artists": ["Frederic Chopin", "Mikhail Pletnev"],
+      "downloadState": "downloaded",
+      "note": "Current now-playing target from the lab UI."
+    },
+    {
+      "title": "Nocturne No.1 in B-Flat Minor, Op.9 No.1",
+      "artists": ["Frederic Chopin", "Maurizio Pollini"],
+      "downloadState": "downloaded",
+      "note": "Previous visible target from the lab UI."
     }
   ]
 }
