@@ -2,7 +2,9 @@
   "enabled": true,
   "forceOffline": true,
   "showMarkers": false,
-  "probe": true,
+  "probe": false,
+  "deepElementPatch": false,
+  "patchNetworkData": false,
   "tracks": [
     {
       "title": "Chopin: Nocturne No. 20 in C-Sharp Minor, Op. Posth.",

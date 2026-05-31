@@ -10,6 +10,8 @@ param(
     [switch]$NoStopExistingSpotify,
     [switch]$Online,
     [switch]$CleanupNetworkRules,
+    [switch]$Probe,
+    [switch]$NoProbe,
     [int]$ShellReadyWaitSeconds = 20,
     [int]$RemoteDebugPort = 0
 )
@@ -32,6 +34,7 @@ $workspaceLocalAppData = Join-Path $workspaceProfile 'localappdata'
 $workspaceLocalSpotify = Join-Path $workspaceLocalAppData 'Spotify'
 $workspaceBrowserData = Join-Path $workspaceLocalSpotify 'BrowserUserData'
 $readyFlag = Join-Path $workspaceProfile '.spotxlab.ready'
+$offlineFixturePath = Join-Path $workspaceProfile 'offline-fixtures.json'
 
 function Stop-LabSpotifyProcesses {
     param(
@@ -297,6 +300,43 @@ function Initialize-SpotXLabLocalAppData {
     Copy-Item -Path $sourceLocalSpotify -Destination $destinationParent -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+function Set-SpotXLabFixtureProbeMode {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FixturePath,
+        [Parameter(Mandatory = $true)]
+        [bool]$Enabled
+    )
+
+    $fixtureDir = Split-Path -Parent $FixturePath
+    if (-not (Test-Path -LiteralPath $fixtureDir -PathType Container)) {
+        New-Item -ItemType Directory -Path $fixtureDir -Force | Out-Null
+    }
+
+    if (Test-Path -LiteralPath $FixturePath -PathType Leaf) {
+        $fixture = Get-Content -LiteralPath $FixturePath -Raw -Encoding UTF8 | ConvertFrom-Json
+    }
+    else {
+        $fixture = [pscustomobject]@{
+            enabled = $false
+            forceOffline = $true
+            showMarkers = $false
+            tracks = @()
+        }
+    }
+
+    $properties = [ordered]@{}
+    foreach ($property in $fixture.PSObject.Properties) {
+        if ($property.Name -ne 'probe') {
+            $properties[$property.Name] = $property.Value
+        }
+    }
+    $properties['probe'] = $Enabled
+
+    $json = ([pscustomobject]$properties) | ConvertTo-Json -Depth 20
+    [System.IO.File]::WriteAllText($FixturePath, $json + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
+}
+
 function Start-SpotXLabSpotify {
     param(
         [Parameter(Mandatory = $true)]
@@ -425,6 +465,13 @@ Initialize-SpotXLabLocalAppData -WorkspaceLocalSpotifyPath $workspaceLocalSpotif
 if (-not (Test-Path -LiteralPath $workspaceBrowserData -PathType Container)) {
     New-Item -ItemType Directory -Path $workspaceBrowserData -Force | Out-Null
 }
+
+if ($Probe -and $NoProbe) {
+    throw "Pass only one of -Probe or -NoProbe."
+}
+$probeEnabled = [bool]$Probe
+Set-SpotXLabFixtureProbeMode -FixturePath $offlineFixturePath -Enabled $probeEnabled
+Write-Host ("Offline fixture probe mode: " + ($(if ($probeEnabled) { 'enabled' } else { 'disabled' })))
 
 Write-Host ('Launching: ' + $spotifyExe.FullName)
 

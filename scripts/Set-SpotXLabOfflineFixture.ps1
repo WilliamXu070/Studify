@@ -8,7 +8,10 @@ param(
     [string]$Isrc,
     [switch]$Append,
     [switch]$ShowMarkers,
+    [switch]$Probe,
     [switch]$NoProbe,
+    [switch]$DeepElementPatch,
+    [switch]$PatchNetworkData,
     [switch]$NoForceOffline
 )
 
@@ -48,7 +51,9 @@ $fixture = [ordered]@{
     enabled = $true
     forceOffline = -not $NoForceOffline
     showMarkers = [bool]$ShowMarkers
-    probe = -not $NoProbe
+    probe = [bool]$Probe -and -not $NoProbe
+    deepElementPatch = [bool]$DeepElementPatch
+    patchNetworkData = [bool]$PatchNetworkData
     tracks = $tracks
 }
 

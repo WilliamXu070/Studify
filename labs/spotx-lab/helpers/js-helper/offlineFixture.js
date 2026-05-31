@@ -3,7 +3,9 @@
   const enabled = Boolean(fixtures && fixtures.enabled);
   const forceOffline = Boolean(fixtures && fixtures.forceOffline);
   const showMarkers = Boolean(fixtures && fixtures.showMarkers);
-  const probe = fixtures && fixtures.probe !== false;
+  const probe = Boolean(fixtures && fixtures.probe);
+  const deepElementPatch = Boolean(fixtures && fixtures.deepElementPatch);
+  const patchNetworkData = Boolean(fixtures && fixtures.patchNetworkData);
   const tracks = Array.isArray(fixtures && fixtures.tracks) ? fixtures.tracks : [];
   const patchTracks = enabled && tracks.length > 0;
 
@@ -96,6 +98,7 @@
     updateAvailability: "update_availability",
   };
   const elementPatchCache = new WeakMap();
+  let scanScheduled = false;
 
   function pushUniqueReportList(name, value, limit) {
     if (!probe) return;
@@ -423,7 +426,7 @@
   }
 
   function patchData(data) {
-    if (!patchTracks) return data;
+    if (!patchTracks || !patchNetworkData) return data;
     try {
       if (probe) collectDownloadKeys(data, 0);
       return walk(data, 0);
@@ -601,7 +604,7 @@
   }
 
   const originalFetch = window.fetch;
-  if (patchTracks && typeof originalFetch === "function") {
+  if (patchTracks && patchNetworkData && typeof originalFetch === "function") {
     window.fetch = async function patchedFetch(input, init) {
       const response = await originalFetch.call(this, input, init);
       const contentType = response.headers && response.headers.get && response.headers.get("content-type");
@@ -622,7 +625,7 @@
     };
   }
 
-  if (patchTracks && window.Response && window.Response.prototype) {
+  if (patchTracks && patchNetworkData && window.Response && window.Response.prototype) {
     const originalJson = window.Response.prototype.json;
     if (typeof originalJson === "function") {
       window.Response.prototype.json = function patchedResponseJson() {
@@ -631,7 +634,7 @@
     }
   }
 
-  if (patchTracks && window.JSON && typeof window.JSON.parse === "function") {
+  if (patchTracks && patchNetworkData && window.JSON && typeof window.JSON.parse === "function") {
     const originalParse = window.JSON.parse;
     window.JSON.parse = function patchedJsonParse(text, reviver) {
       const data = originalParse.call(this, text, reviver);
@@ -640,7 +643,7 @@
     };
   }
 
-  if (patchTracks && window.XMLHttpRequest && window.XMLHttpRequest.prototype) {
+  if (patchTracks && patchNetworkData && window.XMLHttpRequest && window.XMLHttpRequest.prototype) {
     const originalOpen = window.XMLHttpRequest.prototype.open;
     const originalSend = window.XMLHttpRequest.prototype.send;
     window.XMLHttpRequest.prototype.open = function patchedXhrOpen(method, url) {
@@ -662,7 +665,7 @@
     };
   }
 
-  if (probe && window.WebSocket) {
+  if (probe && patchNetworkData && window.WebSocket) {
     const OriginalWebSocket = window.WebSocket;
     window.WebSocket = function SpotXLabWebSocket(url, protocols) {
       const socket = protocols === undefined ? new OriginalWebSocket(url) : new OriginalWebSocket(url, protocols);
@@ -1052,41 +1055,49 @@
     if (!patchTracks || !document.body) return;
     ensureStyle();
     installRowClickInterceptor();
-    const selector = [
-      "[data-testid='tracklist-row']",
-      "[role='row']",
-      "[aria-rowindex]",
-      "[data-testid='now-playing-widget']",
-      "[data-testid='context-item-info-title']",
-    ].join(",");
-    const rows = document.querySelectorAll(selector);
-    for (const row of rows) {
-      for (const compiled of compiledTracks) {
-        if (rowMatchesFixture(row, compiled)) {
-          const uris = extractTrackUrisFromRow(row);
-          for (const uri of uris) addFixtureUri(uri, "matched-dom-row");
-          patchTrackRowPlayable(row, "matched-dom-row");
-          if (showMarkers) addMarker(row);
-          break;
-        }
-      }
-    }
+
     const trackRows = document.querySelectorAll("[data-testid='tracklist-row']");
     for (const row of trackRows) {
       patchTrackRowPlayable(row, "tracklist-row-loop");
+      if (showMarkers) {
+        for (const compiled of compiledTracks) {
+          if (rowMatchesFixture(row, compiled)) {
+            addMarker(row);
+            break;
+          }
+        }
+      }
     }
-    scanFixtureElements();
+    if (deepElementPatch || showMarkers) {
+      scanFixtureElements();
+    }
+  }
+
+  function scheduleScanDom() {
+    if (scanScheduled) return;
+    scanScheduled = true;
+    const runScheduledScan = function runScheduledScan() {
+      scanScheduled = false;
+      scanDom();
+    };
+    if (window.requestIdleCallback) {
+      window.requestIdleCallback(runScheduledScan, { timeout: 1000 });
+    } else if (window.requestAnimationFrame) {
+      window.requestAnimationFrame(runScheduledScan);
+    } else {
+      window.setTimeout(runScheduledScan, 250);
+    }
   }
 
   installNativeDownloadHooks();
   if (patchTracks) {
-    window.setInterval(scanDom, 3000);
+    window.setInterval(scanDom, deepElementPatch ? 3000 : 6000);
     window.setInterval(installNativeDownloadHooks, 5000);
-    const observer = new MutationObserver(scanDom);
+    const observer = new MutationObserver(scheduleScanDom);
     window.setTimeout(function startObserver() {
       if (document.body) {
-        observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-        scanDom();
+        observer.observe(document.body, { childList: true, subtree: true });
+        scheduleScanDom();
       }
     }, 500);
   }
@@ -1095,6 +1106,8 @@
     forceOffline,
     showMarkers,
     probe,
+    deepElementPatch,
+    patchNetworkData,
     tracks,
   });
   console.info("[SpotX Lab] Inspect native patch report with window.__spotxOfflineFixtureReport");
