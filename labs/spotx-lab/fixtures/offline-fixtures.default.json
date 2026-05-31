@@ -1,16 +1,19 @@
 {
   "enabled": true,
   "forceOffline": true,
-  "showMarkers": true,
+  "showMarkers": false,
+  "probe": true,
   "tracks": [
     {
       "title": "Chopin: Nocturne No. 20 in C-Sharp Minor, Op. Posth.",
+      "uri": "spotify:track:2MSgFefjK0T7Iwjvr3OKqV",
       "artists": ["Frederic Chopin", "Mikhail Pletnev"],
       "downloadState": "downloaded",
       "note": "Current now-playing target from the lab UI."
     },
     {
       "title": "Nocturne No.1 in B-Flat Minor, Op.9 No.1",
+      "uri": "spotify:track:2d6ml9Qkx8r4EjuUyrdpRV",
       "artists": ["Frederic Chopin", "Maurizio Pollini"],
       "downloadState": "downloaded",
       "note": "Previous visible target from the lab UI."

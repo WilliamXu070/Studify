@@ -7,7 +7,8 @@ param(
     [string]$Id,
     [string]$Isrc,
     [switch]$Append,
-    [switch]$DisableMarkers,
+    [switch]$ShowMarkers,
+    [switch]$NoProbe,
     [switch]$NoForceOffline
 )
 
@@ -46,7 +47,8 @@ else {
 $fixture = [ordered]@{
     enabled = $true
     forceOffline = -not $NoForceOffline
-    showMarkers = -not $DisableMarkers
+    showMarkers = [bool]$ShowMarkers
+    probe = -not $NoProbe
     tracks = $tracks
 }
 

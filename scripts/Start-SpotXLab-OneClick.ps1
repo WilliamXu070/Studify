@@ -10,7 +10,8 @@ param(
     [switch]$NoStopExistingSpotify,
     [switch]$Online,
     [switch]$CleanupNetworkRules,
-    [int]$ShellReadyWaitSeconds = 20
+    [int]$ShellReadyWaitSeconds = 20,
+    [int]$RemoteDebugPort = 0
 )
 
 $ErrorActionPreference = 'Stop'
@@ -114,7 +115,6 @@ function Set-SpotXLabFirewallRules {
 
     $ruleNames = Get-SpotXLabFirewallRuleNames -Profile $Profile
     New-NetFirewallRule -DisplayName $ruleNames.Outbound -Direction Outbound -Program $ProgramPath -Action Block -Profile Any -Enabled True | Out-Null
-    New-NetFirewallRule -DisplayName $ruleNames.Inbound -Direction Inbound -Program $ProgramPath -Action Block -Profile Any -Enabled True | Out-Null
 }
 
 function Test-SpotXLabFirewallRulesReady {
@@ -130,7 +130,7 @@ function Test-SpotXLabFirewallRulesReady {
     }
 
     $ruleNames = Get-SpotXLabFirewallRuleNames -Profile $Profile
-    foreach ($ruleName in $ruleNames.Values) {
+    foreach ($ruleName in @($ruleNames.Outbound)) {
         $rule = Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue | Where-Object {
             $_.Enabled -eq 'True' -and $_.Action -eq 'Block'
         } | Select-Object -First 1
@@ -453,5 +453,10 @@ else {
 }
 
 $launchArgs = @("--user-data-dir=$workspaceBrowserData")
+if ($RemoteDebugPort -gt 0) {
+    $launchArgs += "--remote-debugging-port=$RemoteDebugPort"
+    $launchArgs += "--remote-allow-origins=http://127.0.0.1:$RemoteDebugPort"
+    Write-Host "Remote debug port enabled on localhost:$RemoteDebugPort."
+}
 $spotifyProcess = Start-SpotXLabSpotify -SpotifyExe $spotifyExe -WorkspaceProfilePath $workspaceProfile -WorkspaceLocalAppDataPath $workspaceLocalAppData -Arguments $launchArgs
 Write-Host ('Spotify started. PID=' + $spotifyProcess.Id)
