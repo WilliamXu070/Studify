@@ -337,6 +337,64 @@ function Set-SpotXLabFixtureProbeMode {
     [System.IO.File]::WriteAllText($FixturePath, $json + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
 }
 
+function Update-SpotXLabOfflineHelper {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SpotifyPath,
+        [Parameter(Mandatory = $true)]
+        [string]$FixturePath,
+        [Parameter(Mandatory = $true)]
+        [string]$LabRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$WorkspaceProfilePath
+    )
+
+    $templatePath = Join-Path $LabRoot 'helpers\js-helper\offlineFixture.js'
+    $archivePath = Join-Path (Join-Path $SpotifyPath 'Apps') 'xpui.spa'
+
+    if (-not (Test-Path -LiteralPath $templatePath -PathType Leaf)) {
+        throw "Offline helper template not found: $templatePath"
+    }
+    if (-not (Test-Path -LiteralPath $archivePath -PathType Leaf)) {
+        throw "Patched xpui.spa not found: $archivePath"
+    }
+
+    $fixtureJson = '{"enabled":false,"tracks":[]}'
+    if (Test-Path -LiteralPath $FixturePath -PathType Leaf) {
+        $fixtureJson = Get-Content -LiteralPath $FixturePath -Raw -Encoding UTF8 | ConvertFrom-Json | ConvertTo-Json -Depth 20 -Compress
+    }
+
+    $template = Get-Content -LiteralPath $templatePath -Raw -Encoding UTF8
+    $helper = $template.Replace('/* SPOTX_OFFLINE_FIXTURES_JSON */ {"enabled":false,"tracks":[]}', $fixtureJson)
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archive = $null
+    try {
+        $archive = [System.IO.Compression.ZipFile]::Open($archivePath, 'Update')
+        $entryName = 'spotx-helper/offlineFixture.js'
+        $entry = $archive.GetEntry($entryName)
+        if ($entry) {
+            $entry.Delete()
+        }
+        $stream = $archive.CreateEntry($entryName).Open()
+        $writer = [System.IO.StreamWriter]::new($stream, [System.Text.UTF8Encoding]::new($false))
+        $writer.Write($helper)
+        $writer.Dispose()
+        $stream.Dispose()
+    }
+    finally {
+        if ($archive) {
+            $archive.Dispose()
+        }
+    }
+
+    $extractHelperPath = Join-Path $WorkspaceProfilePath 'xpui-extract\spotx-helper\offlineFixture.js'
+    $extractHelperDir = Split-Path -Parent $extractHelperPath
+    if (Test-Path -LiteralPath $extractHelperDir -PathType Container) {
+        [System.IO.File]::WriteAllText($extractHelperPath, $helper, [System.Text.UTF8Encoding]::new($false))
+    }
+}
+
 function Start-SpotXLabSpotify {
     param(
         [Parameter(Mandatory = $true)]
@@ -472,6 +530,8 @@ if ($Probe -and $NoProbe) {
 $probeEnabled = [bool]$Probe
 Set-SpotXLabFixtureProbeMode -FixturePath $offlineFixturePath -Enabled $probeEnabled
 Write-Host ("Offline fixture probe mode: " + ($(if ($probeEnabled) { 'enabled' } else { 'disabled' })))
+Update-SpotXLabOfflineHelper -SpotifyPath $spotifyExe.DirectoryName -FixturePath $offlineFixturePath -LabRoot $labRoot -WorkspaceProfilePath $workspaceProfile
+Write-Host "Offline helper refreshed in patched Spotify archive."
 
 Write-Host ('Launching: ' + $spotifyExe.FullName)
 

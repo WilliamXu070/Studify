@@ -6,6 +6,7 @@
   const probe = Boolean(fixtures && fixtures.probe);
   const deepElementPatch = Boolean(fixtures && fixtures.deepElementPatch);
   const patchNetworkData = Boolean(fixtures && fixtures.patchNetworkData);
+  const renderSeededPlaylistFallback = Boolean(fixtures && fixtures.renderSeededPlaylistFallback);
   const tracks = Array.isArray(fixtures && fixtures.tracks) ? fixtures.tracks : [];
   const patchTracks = enabled && tracks.length > 0;
 
@@ -1053,6 +1054,7 @@
 
   function scanDom() {
     if (!patchTracks || !document.body) return;
+    renderSeededPlaylistFallbackView();
     ensureStyle();
     installRowClickInterceptor();
 
@@ -1071,6 +1073,79 @@
     if (deepElementPatch || showMarkers) {
       scanFixtureElements();
     }
+  }
+
+  function escapeText(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function playlistIdFromFixture() {
+    const raw = fixtures && (fixtures.playlistUri || (tracks[0] && tracks[0].contextUri));
+    const match = String(raw || "").match(/playlist[:/]([A-Za-z0-9]+)/);
+    return match ? match[1] : "";
+  }
+
+  function renderSeededPlaylistFallbackView() {
+    if (!renderSeededPlaylistFallback || !patchTracks || !document.body) return;
+    if (document.querySelector("[data-spotx-lab-seeded-playlist]")) return;
+    if (document.querySelector("[data-testid='tracklist-row']")) return;
+
+    const bodyText = document.body.innerText || "";
+    const playlistId = playlistIdFromFixture();
+    const routeLooksRelevant =
+      playlistId && String(location.href || "").indexOf(playlistId) !== -1;
+    if (!routeLooksRelevant && bodyText.indexOf("You're offline") === -1) return;
+
+    const playlistName = fixtures.playlistName || "Seeded playlist";
+    const durationText = tracks.length === 1 ? "1 song" : tracks.length + " songs";
+    const rows = tracks
+      .map(function mapTrack(track, index) {
+        const artists = readNameList(track.artists || track.artist).join(", ");
+        return [
+          '<div data-testid="tracklist-row" data-spotx-lab-seeded-row="true" data-uri="' + escapeText(track.uri || "") + '"',
+          ' style="display:grid;grid-template-columns:42px minmax(220px,1.4fr) minmax(180px,1fr) 92px;align-items:center;gap:18px;min-height:54px;padding:0 22px;border-radius:4px;color:#fff;">',
+          '<div style="color:#b3b3b3;text-align:right;">' + (index + 1) + '</div>',
+          '<div style="min-width:0;"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;">' + escapeText(track.title || track.name || "Untitled") + '</div>',
+          '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#b3b3b3;font-size:13px;">' + escapeText(artists) + '</div></div>',
+          '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#b3b3b3;">' + escapeText(track.album || "") + '</div>',
+          '<div style="display:flex;justify-content:flex-end;gap:16px;color:#b3b3b3;"><span style="color:#1ed760;">OK</span><span>' + escapeText(track.duration || "") + '</span></div>',
+          "</div>",
+        ].join("");
+      })
+      .join("");
+
+    const view = document.createElement("section");
+    view.setAttribute("data-spotx-lab-seeded-playlist", "true");
+    view.setAttribute("aria-label", playlistName);
+    view.style.cssText = [
+      "position:fixed",
+      "left:318px",
+      "right:0",
+      "top:48px",
+      "bottom:88px",
+      "z-index:60",
+      "overflow:auto",
+      "background:#121212",
+      "color:#fff",
+      "font-family:var(--font-family,SpotifyMixUI,CircularSp,Arial,sans-serif)",
+    ].join(";");
+    view.innerHTML = [
+      '<div style="min-height:230px;background:linear-gradient(180deg,#8f334b 0%,#581125 100%);display:flex;align-items:flex-end;padding:32px;">',
+      '<div style="width:152px;height:152px;background:#282828;display:flex;align-items:center;justify-content:center;color:#b3b3b3;font-size:52px;font-weight:700;margin-right:24px;">#</div>',
+      '<div><div style="font-size:13px;font-weight:700;margin-bottom:10px;">Playlist</div>',
+      '<h1 style="font-size:72px;line-height:0.95;margin:0 0 18px;font-weight:900;letter-spacing:0;">' + escapeText(playlistName) + '</h1>',
+      '<div style="font-size:14px;color:#ddd;">Offline seed cache - ' + escapeText(durationText) + '</div></div></div>',
+      '<div style="padding:22px 32px 40px;background:linear-gradient(180deg,rgba(88,17,37,.38),#121212 150px);">',
+      '<div style="display:flex;align-items:center;gap:22px;margin-bottom:24px;"><button type="button" aria-label="Play" style="width:56px;height:56px;border-radius:50%;border:0;background:#1ed760;color:#000;font-size:26px;font-weight:800;">&gt;</button><span style="color:#b3b3b3;font-size:18px;">shuffle</span><span style="color:#b3b3b3;font-size:24px;">...</span></div>',
+      '<div style="display:grid;grid-template-columns:42px minmax(220px,1.4fr) minmax(180px,1fr) 92px;gap:18px;padding:0 22px 10px;border-bottom:1px solid rgba(255,255,255,.12);color:#b3b3b3;font-size:13px;">',
+      '<div style="text-align:right;">#</div><div>Title</div><div>Album</div><div style="text-align:right;">Duration</div></div>',
+      '<div style="padding-top:6px;">' + rows + "</div></div>",
+    ].join("");
+    document.body.appendChild(view);
   }
 
   function scheduleScanDom() {
@@ -1108,6 +1183,7 @@
     probe,
     deepElementPatch,
     patchNetworkData,
+    renderSeededPlaylistFallback,
     tracks,
   });
   console.info("[SpotX Lab] Inspect native patch report with window.__spotxOfflineFixtureReport");
